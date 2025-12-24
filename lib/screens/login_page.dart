@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
 import '../services/api_service.dart';
-import 'dashboard_page.dart';
+import 'main_screen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -41,9 +41,9 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _isLoading = false;
       if (result['stat'] == 'Ok') {
-        Navigator.of(context).push(
+        Navigator.of(context).pushReplacement(
           MaterialPageRoute(
-            builder: (context) => DashboardPage(userData: result),
+            builder: (context) => MainScreen(userData: result),
           ),
         );
       } else {

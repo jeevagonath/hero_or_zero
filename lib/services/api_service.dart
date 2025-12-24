@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
 import '../core/constants.dart';
+import 'storage_service.dart';
 
 class ApiService {
+  final StorageService _storageService = StorageService();
   String? _userToken;
   String? get userToken => _userToken;
 
@@ -46,6 +48,7 @@ class ApiService {
         final Map<String, dynamic> data = jsonDecode(response.body);
         if (data['stat'] == 'Ok') {
           _userToken = data['usertoken'];
+          await _storageService.saveUserToken(_userToken!);
         }
         return data;
       } else {
@@ -54,5 +57,9 @@ class ApiService {
     } catch (e) {
       return {'stat': 'Not_Ok', 'emsg': e.toString()};
     }
+  }
+
+  Future<void> initToken() async {
+    _userToken = await _storageService.getUserToken();
   }
 }
