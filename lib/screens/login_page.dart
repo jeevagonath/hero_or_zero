@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../core/constants.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -55,7 +56,7 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     final result = await _apiService.quickAuth(
-      userId: _userIdController.text,
+      userId: _userIdController.text.trim().toUpperCase(),
       password: _passwordController.text,
       totp: _totpController.text,
       vendorCode: config['vendorCode']!,
@@ -131,6 +132,7 @@ class _LoginPageState extends State<LoginPage> {
                       controller: _userIdController,
                       label: 'User ID',
                       icon: Icons.person_outline,
+                      textCapitalization: TextCapitalization.characters,
                     ),
                     const SizedBox(height: 20),
                     _buildTextField(
@@ -145,6 +147,8 @@ class _LoginPageState extends State<LoginPage> {
                       label: 'TOTP',
                       icon: Icons.security_outlined,
                       keyboardType: TextInputType.number,
+                      obscureText: true,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     ),
                     const SizedBox(height: 32),
                     if (_errorMessage != null)
@@ -196,11 +200,15 @@ class _LoginPageState extends State<LoginPage> {
     required IconData icon,
     bool obscureText = false,
     TextInputType? keyboardType,
+    TextCapitalization textCapitalization = TextCapitalization.none,
+    List<TextInputFormatter>? inputFormatters,
   }) {
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
+      textCapitalization: textCapitalization,
+      inputFormatters: inputFormatters,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
