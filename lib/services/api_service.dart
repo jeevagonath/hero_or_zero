@@ -183,7 +183,10 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> getPositionBook({required String userId}) async {
-    final Map<String, dynamic> jData = {'uid': userId};
+    final Map<String, dynamic> jData = {
+      'uid': userId,
+      'actid': userId,
+    };
     try {
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.positionBook}'),

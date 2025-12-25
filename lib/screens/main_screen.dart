@@ -5,6 +5,7 @@ import 'positions_page.dart';
 import 'order_book_page.dart';
 import 'trade_book_page.dart';
 import 'user_details_page.dart';
+import '../services/pnl_service.dart';
 
 class MainScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -17,6 +18,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
+  final PnLService _pnlService = PnLService();
 
   late final List<Widget> _pages;
 
@@ -31,19 +33,79 @@ class _MainScreenState extends State<MainScreen> {
       const TradeBookPage(),
       UserDetailsPage(userData: widget.userData),
     ];
+    
+    // Initial fetch for positions
+    _pnlService.fetchPositions();
   }
 
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
+    // Refresh positions when hitting the positions tab or strategy tab
+    if (index == 1 || index == 2) {
+      _pnlService.fetchPositions();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A),
-      body: SafeArea(child: _pages[_selectedIndex]),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: Container(
+          padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top, left: 16, right: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.2),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Hero or Zero',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              ValueListenableBuilder<double>(
+                valueListenable: _pnlService.totalPnL,
+                builder: (context, pnl, child) {
+                  final color = pnl >= 0 ? Colors.greenAccent : Colors.redAccent;
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const Text(
+                        'Total P&L',
+                        style: TextStyle(fontSize: 10, color: Colors.blueGrey),
+                      ),
+                      Text(
+                        '₹${pnl.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
