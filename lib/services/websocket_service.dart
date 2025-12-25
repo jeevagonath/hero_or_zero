@@ -62,6 +62,10 @@ class WebSocketService {
           _startHeartbeat();
           
           final data = jsonDecode(message);
+          // print('WS Received: $message'); // Very verbose, keep commented if noisy
+          if (data['t'] == 't' || data['t'] == 'tf') {
+             // print('LTP Message for ${data['tk']}: ${data['lp']}');
+          }
           
           // If connection is confirmed, re-subscribe
           if (data['t'] == 'ck' && data['s'] == 'OK') {
@@ -155,6 +159,7 @@ class WebSocketService {
       't': type,
       'k': '$exchange|$token',
     };
+    print('Sending WS Subscription Request: ${jsonEncode(request)}');
     _channel!.sink.add(jsonEncode(request));
   }
 

@@ -105,4 +105,21 @@ class StorageService {
       'showTestButton': prefs.getBool(_keyShowTestButton) ?? true,
     };
   }
+  // Daily Strategy Capture (Persistence)
+  Future<void> saveDailyCapture(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('daily_strategy_capture', jsonEncode(data));
+  }
+
+  Future<Map<String, dynamic>?> getDailyCapture() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? data = prefs.getString('daily_strategy_capture');
+    if (data == null) return null;
+    return jsonDecode(data);
+  }
+
+  Future<void> clearDailyCapture() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('daily_strategy_capture');
+  }
 }

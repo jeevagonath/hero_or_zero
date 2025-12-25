@@ -24,6 +24,9 @@ class _StrategyPageState extends State<StrategyPage> {
   bool _isStrategyDay = false;
   String _targetIndex = 'NIFTY'; // NIFTY or SENSEX
   bool _isResolving = false;
+  bool _isCapturing = false;
+  String? _statusMessage;
+  String? _errorMessage;
   
   Map<String, dynamic> _settings = {};
   List<Map<String, dynamic>> _strikes = [];
@@ -41,10 +44,16 @@ class _StrategyPageState extends State<StrategyPage> {
 
   void _startWsBinding() {
     _wsSubscription = _wsService.messageStream.listen((message) {
-      if (message['t'] == 't' && message['lp'] != null) {
-        final token = message['tk'];
-        final lp = message['lp'];
-        _updateStrikePrice(token, lp);
+      // DEBUG: Log all touchline messages
+      if (message['t'] == 't' || message['t'] == 'tf') {
+        print('WS Message received: ${message['t']} for token ${message['tk']} lp=${message['lp']}');
+        final token = message['tk']?.toString();
+        final lp = message['lp']?.toString();
+        if (token != null && lp != null) {
+          _updateStrikePrice(token, lp);
+        }
+      } else if (message['t'] == 'ck') {
+        print('WS Connection Confirmed in StrategyPage');
       }
     });
   }
@@ -52,8 +61,10 @@ class _StrategyPageState extends State<StrategyPage> {
   void _updateStrikePrice(String token, String lp) {
     bool updated = false;
     for (var strike in _strikes) {
-      if (strike['token'] == token) {
+      final String? strikeToken = strike['token']?.toString();
+      if (strikeToken == token) {
         if (strike['lp'] != lp) {
+          print('Updating LTP for ${strike['tsym']}: $lp'); // DEBUG
           strike['lp'] = lp;
           updated = true;
         }
@@ -78,6 +89,7 @@ class _StrategyPageState extends State<StrategyPage> {
     final settings = await _storageService.getStrategySettings();
     final now = DateTime.now();
     final dayName = DateFormat('EEEE').format(now);
+    final todayStr = DateFormat('yyyy-MM-dd').format(now);
 
     setState(() {
       _settings = settings;
@@ -90,20 +102,51 @@ class _StrategyPageState extends State<StrategyPage> {
       } else {
         _isStrategyDay = false;
       }
+    });
+
+    // Load saved daily capture if it exists and matches today
+    final savedCapture = await _storageService.getDailyCapture();
+    if (savedCapture != null && savedCapture['date'] == todayStr) {
+      print('Restoring Strategy Capture for today: $todayStr');
+      final List<dynamic> strikesRaw = savedCapture['strikes'] ?? [];
+      final List<Map<String, dynamic>> restoredStrikes = strikesRaw.map((s) => Map<String, dynamic>.from(s)).toList();
+      
+      setState(() {
+        _capturedSpotPrice = savedCapture['spot']?.toString();
+        _strikes = restoredStrikes;
+      });
+
+      // Subscribe restored strikes to WS
+      final String exchange = _targetIndex == 'NIFTY' ? 'NFO' : 'BFO';
+      for (var s in restoredStrikes) {
+        _wsService.subscribeTouchline(exchange, s['token'].toString());
+      }
+    }
+
+    setState(() {
       _isLoading = false;
     });
   }
 
   void _checkStrategyCondition(DateTime now) async {
-    if (!_isStrategyDay || _capturedSpotPrice != null) return;
+    // Only run if it's strategy day AND we haven't captured yet today
+    if (!_isStrategyDay || _capturedSpotPrice != null || _isCapturing || _isResolving) return;
 
-    // Target time: 13:15 (1:15 PM)
-    if (now.hour == 13 && now.minute == 15 && now.second == 0) {
+    // Target time: >= 13:15 (1:15 PM)
+    if (now.hour >= 13 && (now.hour > 13 || now.minute >= 15)) {
+      print('Auto-triggering Strategy Capture at ${DateFormat('HH:mm:ss').format(now)}');
       _captureSpotPrice();
     }
   }
 
   void _captureSpotPrice() async {
+    if (_isCapturing) return;
+    setState(() {
+      _isCapturing = true;
+      _statusMessage = 'Capturing spot price...';
+      _errorMessage = null;
+    });
+
     try {
       final String uid = _apiService.userId ?? '';
       final String exchange = _targetIndex == 'NIFTY' ? 'NSE' : 'BSE';
@@ -117,17 +160,33 @@ class _StrategyPageState extends State<StrategyPage> {
           setState(() {
             _capturedSpotPrice = spot.toStringAsFixed(2);
             _capturedAt = DateTime.now();
+            _isCapturing = false;
+            _statusMessage = 'Spot captured. Resolving contracts...';
           });
           _generateAndResolveStrikes(spot);
+          return;
+        } else {
+          _errorMessage = 'Received zero spot price';
         }
+      } else {
+        _errorMessage = quote['emsg'] ?? 'Failed to get quote';
       }
     } catch (e) {
-      print('Error capturing spot price: $e');
+      _errorMessage = 'Error: $e';
     }
+    
+    setState(() {
+      _isCapturing = false;
+      _statusMessage = null;
+    });
   }
 
   Future<void> _generateAndResolveStrikes(double spot) async {
-    setState(() => _isResolving = true);
+    setState(() {
+      _isResolving = true;
+      _statusMessage = 'Resolving specific contracts...';
+    });
+    
     final double interval = _targetIndex == 'NIFTY' ? 50 : 100;
     double baseStrike = (spot / interval).floorToDouble() * interval;
 
@@ -147,22 +206,28 @@ class _StrategyPageState extends State<StrategyPage> {
     List<Map<String, dynamic>> resolvedStrikes = [];
 
     for (var s in tempStrikes) {
-      // Search for something like "NIFTY25DEC26650PE" or similar
-      // Actually, Shoonya search usually needs just the strike and instrument
       final String searchText = '${_targetIndex} ${s['strike'].toInt()} ${s['type']}';
       
       try {
         final results = await _apiService.searchScrip(userId: uid, searchText: searchText);
         if (results['stat'] == 'Ok' && results['values'] != null) {
-          // Filter for the specific exchange (NFO/BFO) and ensure it's the correct strike/type
           final List values = results['values'];
+          
+          // Relaxed matching: ends with P/PE or C/CE
+          final String targetSuffix = s['type'];
+          final String targetSuffixE = '${s['type']}E';
+
           var bestMatch = values.firstWhere(
-            (v) => v['exch'] == exchange && 
-                   v['tsym'].toString().endsWith('${s['type']}'),
+            (v) {
+              final String tsym = v['tsym'].toString();
+              return v['exch'] == exchange && 
+                     (tsym.endsWith(targetSuffix) || tsym.endsWith(targetSuffixE));
+            },
             orElse: () => null
           );
 
           if (bestMatch != null) {
+            print('Resolved Strike: ${bestMatch['tsym']} with Token: ${bestMatch['token']} on Exchange: $exchange');
             resolvedStrikes.add({
               'strike': s['strike'],
               'type': s['type'] == 'P' ? 'PE' : 'CE',
@@ -172,8 +237,7 @@ class _StrategyPageState extends State<StrategyPage> {
               'selected': true,
               'lp': '...',
             });
-            // Subscribe via WebSocket
-            _wsService.subscribeTouchline(exchange, bestMatch['token']);
+            _wsService.subscribeTouchline(exchange, bestMatch['token'].toString());
           }
         }
       } catch (e) {
@@ -184,7 +248,21 @@ class _StrategyPageState extends State<StrategyPage> {
     setState(() {
       _strikes = resolvedStrikes;
       _isResolving = false;
+      _statusMessage = resolvedStrikes.isEmpty ? 'No contracts found' : null;
+      if (resolvedStrikes.isEmpty) {
+        _errorMessage = 'Could not find tradable contracts for the captured spot.';
+      }
     });
+
+    if (resolvedStrikes.isNotEmpty && _capturedSpotPrice != null) {
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      await _storageService.saveDailyCapture({
+        'date': todayStr,
+        'spot': _capturedSpotPrice,
+        'strikes': resolvedStrikes,
+      });
+      print('Strategy Capture saved and locked for today: $todayStr');
+    }
   }
 
   Future<void> _placeOrders() async {
@@ -279,20 +357,10 @@ class _StrategyPageState extends State<StrategyPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Strategy: $_targetIndex Recovery',
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-              ),
-              Text(
-                _currentTime,
-                style: const TextStyle(fontSize: 16, color: Colors.blueGrey, fontFamily: 'monospace'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
+          _buildInfoRow('Current Time', _currentTime, isHighlighted: true),
+          const SizedBox(height: 8),
+          _buildInfoRow('Target Index', _targetIndex, isHighlighted: true),
+          const SizedBox(height: 8),
           _buildInfoRow('Strategy Day', _isStrategyDay ? 'TODAY' : 'Not Active', isHighlighted: _isStrategyDay),
           _buildInfoRow('Capture Time', '13:15:00'),
           if (_capturedSpotPrice != null)
@@ -304,7 +372,7 @@ class _StrategyPageState extends State<StrategyPage> {
 
   Widget _buildInfoRow(String label, String value, {bool isHighlighted = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -325,20 +393,30 @@ class _StrategyPageState extends State<StrategyPage> {
     return Center(
       child: Column(
         children: [
-          const Icon(Icons.timer_outlined, size: 64, color: Colors.blueGrey),
+          if (_isCapturing || _isResolving)
+            const CircularProgressIndicator(color: Colors.blueAccent)
+          else
+            const Icon(Icons.timer_outlined, size: 64, color: Colors.blueGrey),
           const SizedBox(height: 16),
-          Text(
-            _isStrategyDay 
-                ? 'Waiting for 1:15 PM capture...' 
-                : 'Strategy inactive. Next run on ${_settings['niftyDay']}/${_settings['sensexDay']}.',
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.blueGrey),
-          ),
-          if (_settings['showTestButton'] ?? true) ...[
+          if (_errorMessage != null)
+             Text(
+              _errorMessage!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+            )
+          else
+            Text(
+              _statusMessage ?? (_isStrategyDay 
+                  ? 'Waiting for 1:15 PM capture...' 
+                  : 'Strategy inactive. Next run on ${_settings['niftyDay']}/${_settings['sensexDay']}.'),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.blueGrey),
+            ),
+          if (_settings['showTestButton'] ?? true || _errorMessage != null) ...[
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _captureSpotPrice,
-              child: const Text('Test Capture Now'),
+              child: Text(_errorMessage != null ? 'Retry Capture' : 'Test Capture Now'),
             ),
           ],
         ],
@@ -347,48 +425,116 @@ class _StrategyPageState extends State<StrategyPage> {
   }
 
   Widget _buildStrikesSection() {
+    if (_strikes.isEmpty) return const SizedBox.shrink();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Select Strike Prices',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Select Strike Prices',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh, color: Colors.blueAccent),
+              onPressed: () {
+                // Manually resubscribe just in case
+                final String exchange = _targetIndex == 'NIFTY' ? 'NFO' : 'BFO';
+                for (var s in _strikes) {
+                  print('Resubscribing to ${s['tsym']} (${s['token']})');
+                  _wsService.subscribeTouchline(exchange, s['token'].toString());
+                }
+              },
+            ),
+          ],
         ),
         const SizedBox(height: 16),
-        ...List.generate(_strikes.length, (index) {
-          final s = _strikes[index];
-          final isCall = s['type'] == 'CE';
-          return CheckboxListTile(
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${s['tsym'] ?? (s['strike'].toString() + ' ' + s['type'])}',
-                  style: TextStyle(
-                    color: isCall ? Colors.greenAccent : Colors.redAccent,
-                    fontWeight: FontWeight.bold,
-                  ),
+        ..._strikes.map((s) => _buildStrikeCard(s, isPut: s['type'] == 'PE')),
+      ],
+    );
+  }
+
+  Widget _buildStrikeCard(Map<String, dynamic> strike, {required bool isPut}) {
+    final int index = _strikes.indexOf(strike);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16), // More space between cards
+      padding: const EdgeInsets.all(20), // Significant vertical and horizontal padding
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: strike['selected'] 
+              ? (isPut ? Colors.redAccent.withOpacity(0.6) : Colors.greenAccent.withOpacity(0.6))
+              : Colors.white10,
+          width: strike['selected'] ? 2.0 : 1.0,
+        ),
+      ),
+      child: InkWell(
+        onTap: () => setState(() => _strikes[index]['selected'] = !strike['selected']),
+        child: Row(
+          children: [
+            // Checkbox on the left
+            Theme(
+              data: ThemeData(unselectedWidgetColor: Colors.white24),
+              child: Transform.scale(
+                scale: 1.2,
+                child: Checkbox(
+                  value: strike['selected'],
+                  activeColor: isPut ? Colors.redAccent : Colors.greenAccent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                  onChanged: (val) => setState(() => _strikes[index]['selected'] = val),
                 ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Symbol and Type Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    strike['tsym']?.toString() ?? strike['strike'].toString(),
+                    style: const TextStyle(
+                      fontSize: 14, // Larger font
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.visible, // Show full data
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    isPut ? 'OTM Put Option (PE)' : 'OTM Call Option (CE)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isPut ? Colors.redAccent.withOpacity(0.8) : Colors.greenAccent.withOpacity(0.8),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Price on the right
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                const Text('LTP', style: TextStyle(color: Colors.blueGrey, fontSize: 10)),
                 Text(
-                  '₹${s['lp'] ?? '0.00'}',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  '₹${strike['lp'] ?? '0.00'}',
+                  style: TextStyle(
+                    fontSize: 18, // Large price display
+                    color: isPut ? Colors.redAccent : Colors.greenAccent,
                     fontWeight: FontWeight.bold,
                     fontFamily: 'monospace',
                   ),
                 ),
               ],
             ),
-            value: s['selected'],
-            onChanged: (val) => setState(() => _strikes[index]['selected'] = val),
-            activeColor: Colors.blueAccent,
-            subtitle: Text(
-              isCall ? 'OTM Call Option' : 'OTM Put Option',
-              style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
-            ),
-          );
-        }),
-      ],
+          ],
+        ),
+      ),
     );
   }
 
