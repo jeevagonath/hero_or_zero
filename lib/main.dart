@@ -3,6 +3,8 @@ import 'screens/login_page.dart';
 import 'screens/main_screen.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
+import 'screens/settings_page.dart';
+import 'screens/developer_settings_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +44,11 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/settings': (context) => const SettingsPage(),
+        '/developer-settings': (context) => const DeveloperSettingsPage(),
+      },
       home: initialUserData != null 
           ? MainScreen(userData: initialUserData!) 
           : const LoginPage(),

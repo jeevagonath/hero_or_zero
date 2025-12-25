@@ -287,4 +287,9 @@ class ApiService {
       return {'stat': 'Not_Ok', 'emsg': e.toString()};
     }
   }
+
+  void clearSession() {
+    _userToken = null;
+    _userId = null;
+  }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
 import '../services/api_service.dart';
+import '../services/storage_service.dart';
 import 'main_screen.dart';
 
 class LoginPage extends StatefulWidget {
@@ -13,6 +14,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _apiService = ApiService();
+  final _storageService = StorageService();
 
   final _userIdController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -20,9 +22,32 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _isLoading = false;
   String? _errorMessage;
+  Map<String, String>? _devConfig;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDevConfig();
+  }
+
+  Future<void> _loadDevConfig() async {
+    final config = await _storageService.getDevConfig();
+    setState(() {
+      _devConfig = config;
+    });
+  }
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
+
+    // Load latest config before logging in
+    final config = await _storageService.getDevConfig();
+    if (config['vendorCode']!.isEmpty || config['apiKey']!.isEmpty || config['imei']!.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please configure developer settings first';
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -33,9 +58,9 @@ class _LoginPageState extends State<LoginPage> {
       userId: _userIdController.text,
       password: _passwordController.text,
       totp: _totpController.text,
-      vendorCode: ApiConstants.vendorCode,
-      apiKey: ApiConstants.apiKey,
-      imei: ApiConstants.imei,
+      vendorCode: config['vendorCode']!,
+      apiKey: config['apiKey']!,
+      imei: config['imei']!,
     );
 
     setState(() {
@@ -56,6 +81,16 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A), // Deep Slate Dark
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, color: Colors.blueGrey),
+            onPressed: () => Navigator.pushNamed(context, '/developer-settings'),
+          ),
+        ],
+      ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),

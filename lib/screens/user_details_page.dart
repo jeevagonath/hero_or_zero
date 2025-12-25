@@ -1,9 +1,27 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import '../services/storage_service.dart';
 
 class UserDetailsPage extends StatelessWidget {
   final Map<String, dynamic> userData;
 
   const UserDetailsPage({super.key, required this.userData});
+
+  Future<void> _handleLogout(BuildContext context) async {
+    final ApiService apiService = ApiService();
+    final StorageService storageService = StorageService();
+
+    // 1. Clear session in API
+    apiService.clearSession();
+    
+    // 2. Clear local storage
+    await storageService.clearAll();
+
+    // 3. Navigate back to login
+    if (context.mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -16,13 +34,22 @@ class UserDetailsPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'User Details',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'User Details',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.blueAccent),
+                onPressed: () => Navigator.pushNamed(context, '/settings'),
+              ),
+            ],
           ),
           const SizedBox(height: 32),
           _buildInfoCard(
@@ -41,6 +68,28 @@ class UserDetailsPage extends StatelessWidget {
               _buildInfoRow('Email', userData['email'] ?? 'N/A'),
             ],
           ),
+          const SizedBox(height: 48),
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: OutlinedButton.icon(
+              onPressed: () => _handleLogout(context),
+              icon: const Icon(Icons.logout, color: Colors.redAccent),
+              label: const Text(
+                'LOGOUT',
+                style: TextStyle(
+                  color: Colors.redAccent,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.redAccent, width: 2),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
         ],
       ),
     );
