@@ -36,6 +36,9 @@ class PnLService {
       positions.value = updatedPositions;
       _subscribeToPositions(updatedPositions);
       _calculateTotalPnL();
+    } else if (result['emsg']?.toString().toLowerCase().contains('no data') ?? false) {
+      positions.value = [];
+      totalPnL.value = 0.0;
     }
     
     _isFetching = false;
