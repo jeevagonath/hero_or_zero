@@ -125,6 +125,21 @@ Clean up the Dashboard UI by removing redundant stats and fixing the search usab
     - [x] **[Implemented] Dynamic Quantity**: Capture `ls` from `GetOptionChain` using resolved strike's `tsym` and spot price. `Qty = UserLots * IndexLotSize`.
     - [x] Implement robust error reporting in `StrategyPage`
 
+## Phase 5: Candlestick Charts
+- **[Implemented] Dependencies**: Add `candlesticks` package.
+- **[Implemented] [chart_page.dart]**:
+    - Implement a full-screen chart view.
+    - **Timeframe Selector**: Buttons for 1m, 3m, 5m, 15m.
+    - **Data Fetching**: Call `getTPSeries` (History) for the selected range.
+    - **OHLC Display**: Show Open, High, Low, Close values on hover.
+- **[Implemented] [api_service.dart]**:
+    - Add `getTPSeries` endpoint to fetch OHLC data.
+    - Helper method to convert API JSON to `Candle` objects.
+- **[Implemented] [dashboard_placeholder_page.dart]**:
+    - **Action Buttons**: Update Watchlist item actions.
+    - Replace `Close` icon with `Delete` (Bin) icon.
+    - Add `Chart` icon to navigate to `ChartPage`.
+
 - **Digital Signing**:
     - Generated a release keystore (`upload-keystore.jks`) in `android/app/`.
     - Created `key.properties` to store signing credentials.

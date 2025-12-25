@@ -56,11 +56,16 @@ class UserDetailsPage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 48),
-          NeonButton(
-            onPressed: () => _handleLogout(context),
-            label: 'TERMINATE SESSION',
-            icon: Icons.power_settings_new_rounded,
-            color: const Color(0xFFFF5F5F),
+          Center(
+            child: SizedBox(
+              width: 200,
+              child: NeonButton(
+                onPressed: () => _handleLogout(context),
+                label: 'LOGOUT',
+                icon: Icons.power_settings_new_rounded,
+                color: const Color(0xFFFF5F5F),
+              ),
+            ),
           ),
           const SizedBox(height: 48),
         ],

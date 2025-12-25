@@ -6,6 +6,7 @@ import '../core/constants.dart';
 import '../widgets/glass_widgets.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'dart:ui';
+import 'chart_page.dart';
 
 class DashboardPlaceholderPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -576,6 +577,8 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
     );
   }
 
+
+
   Widget _buildScripCard(Map<String, dynamic> scrip, int index) {
     final String change = scrip['pc_calc'] ?? '0.00';
     final bool isPositive = !change.startsWith('-');
@@ -598,7 +601,7 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
                 Text(
                   scrip['tsym'],
                   style: const TextStyle(
-                    fontSize: 13, // Reduced from 16 to 13
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: Colors.white,
                     letterSpacing: 0.5,
@@ -639,56 +642,93 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
             ],
           ),
           const SizedBox(width: 16),
-          InkWell(
-            onTap: () async {
-              final String uid = widget.userData['actid'] ?? _apiService.userId ?? '';
-              final String scripName = scrip['tsym'] ?? 'Scrip';
-              
-              try {
-                final result = await _apiService.deleteMultiMWScrips(
-                  userId: uid,
-                  scrips: '${scrip['exch']}|${scrip['token']}',
-                );
-
-                if (mounted) {
-                  if (result['stat'] == 'Ok') {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('$scripName removed from Watchlist'),
-                        backgroundColor: const Color(0xFF00D97E),
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 2),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Chart Icon
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(
+                      builder: (_) => ChartPage(
+                        exchange: scrip['exch'],
+                        token: scrip['token'],
+                        symbol: scrip['tsym'],
                       ),
-                    );
-
-                    setState(() {
-                      _wsService.unsubscribeTouchline(scrip['exch'], scrip['token']);
-                      _selectedScrips.remove(scrip);
-                    });
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to remove: ${result['emsg']}'),
-                        backgroundColor: const Color(0xFFFF5F5F),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Network Error during deletion'),
-                      backgroundColor: Color(0xFFFF5F5F),
-                      behavior: SnackBarBehavior.floating,
                     ),
                   );
-                }
-                print('Error syncing delete with backend: $e');
-              }
-            },
-            child: Icon(Icons.close, size: 18, color: Colors.white.withOpacity(0.3)),
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4D96FF).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.candlestick_chart, size: 16, color: Color(0xFF4D96FF)),
+                ),
+              ),
+              const SizedBox(height: 6),
+              // Delete Icon
+              InkWell(
+                onTap: () async {
+                  final String uid = widget.userData['actid'] ?? _apiService.userId ?? '';
+                  final String scripName = scrip['tsym'] ?? 'Scrip';
+                  
+                  try {
+                    final result = await _apiService.deleteMultiMWScrips(
+                      userId: uid,
+                      scrips: '${scrip['exch']}|${scrip['token']}',
+                    );
+
+                    if (mounted) {
+                      if (result['stat'] == 'Ok') {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('$scripName removed from Watchlist'),
+                            backgroundColor: const Color(0xFF00D97E),
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+
+                        setState(() {
+                          _wsService.unsubscribeTouchline(scrip['exch'], scrip['token']);
+                          _selectedScrips.remove(scrip);
+                        });
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to remove: ${result['emsg']}'),
+                            backgroundColor: const Color(0xFFFF5F5F),
+                            behavior: SnackBarBehavior.floating,
+                          ),
+                        );
+                      }
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Network Error during deletion'),
+                          backgroundColor: Color(0xFFFF5F5F),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                    print('Error syncing delete with backend: $e');
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF5F5F).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.delete_outline, size: 16, color: Color(0xFFFF5F5F)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -711,7 +751,7 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
           Text(
             title,
             style: TextStyle(
-              fontSize: 11, // Reduced from 13
+              fontSize: 11,
               color: Colors.white.withOpacity(0.5),
               fontWeight: FontWeight.w800,
               letterSpacing: 0.5,
@@ -721,7 +761,7 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
           Text(
             ltp,
             style: const TextStyle(
-              fontSize: 18, // Reduced from 22
+              fontSize: 18,
               fontWeight: FontWeight.w900,
               color: Colors.white,
               letterSpacing: -1,
@@ -739,14 +779,14 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
               children: [
                 Icon(
                   isPositive ? Icons.trending_up : Icons.trending_down,
-                  size: 12, // Reduced from 14
+                  size: 12,
                   color: color,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   '$absChange ($change%)',
                   style: TextStyle(
-                    fontSize: 10, // Reduced from 12
+                    fontSize: 10,
                     color: color,
                     fontWeight: FontWeight.w800,
                   ),

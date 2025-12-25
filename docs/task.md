@@ -144,3 +144,8 @@
     - [x] Implement Daily Session Expiry (Auto-logout if date changes) <!-- id: 205 -->
     - [x] Refine Login Page Header (Compact Layout) <!-- id: 206 -->
     - [x] Implement Market Status Indicator (Checking/Live/Closed) <!-- id: 207 -->
+    - [x] Add `candlesticks` dependency <!-- id: 208 -->
+    - [x] Implement `getTPSeries` in ApiService <!-- id: 209 -->
+    - [x] Create `ChartPage` with Timeframe Selection (1m-15m) <!-- id: 210 -->
+    - [x] Update Watchlist Icons (Chart & Delete) <!-- id: 211 -->
+    - [x] Implement OHLC Display in Chart Header <!-- id: 212 -->

@@ -4,6 +4,7 @@ class ApiConstants {
   static const String searchScrip = '/NorenWClientTP/SearchScrip';
   static const String getQuote = '/NorenWClientTP/GetQuotes';
   static const String getOptionChain = '/NorenWClientTP/GetOptionChain';
+  static const String tpSeries = '/NorenWClientTP/TPSeries';
   static const String placeOrder = '/NorenWClientTP/PlaceOrder';
   static const String positionBook = '/NorenWClientTP/PositionBook';
   static const String tradeBook = '/NorenWClientTP/TradeBook';

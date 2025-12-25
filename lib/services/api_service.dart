@@ -437,6 +437,45 @@ class ApiService {
     }
   }
 
+
+
+  Future<Map<String, dynamic>> getTPSeries({
+    required String userId,
+    required String exchange,
+    required String token,
+    required String startTime, // Epoch seconds
+    required String endTime,   // Epoch seconds
+  }) async {
+    final Map<String, dynamic> jData = {
+      'uid': userId,
+      'exch': exchange,
+      'token': token,
+      'st': startTime,
+      'et': endTime,
+    };
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.tpSeries}'),
+        body: 'jData=${jsonEncode(jData)}&jKey=${_userToken ?? ''}',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+      if (response.statusCode == 200) {
+        final dynamic data = jsonDecode(response.body);
+        if (data is List) {
+          return {'stat': 'Ok', 'values': data};
+        } else if (data is Map<String, dynamic>) {
+           // Typically returns array if successful, or object with stat=Ok/Not_Ok
+           return data;
+        }
+        return {'stat': 'Not_Ok', 'emsg': 'Invalid response format'};
+      } else {
+        return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'stat': 'Not_Ok', 'emsg': e.toString()};
+    }
+  }
+
   void clearSession() {
     _userToken = null;
     _userId = null;

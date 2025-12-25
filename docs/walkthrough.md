@@ -29,6 +29,16 @@ I have successfully implemented a robust, background-persistent trading strategy
 2. Backgrounded the app or switched to other tabs.
 3. Verified (via logs) that the `StrategyService` triggered at the exact time, captured spot, and resolved contracts without the `StrategyPage` being open.
 
+#### Phase 5: Candlestick Charts & Fixes
+- **Feature**: Full-screen candlestick chart with 1m, 3m, 5m, 15m timeframes.
+- **Display**: OHLC (Open, High, Low, Close) values shown in a dedicated bar above the chart.
+- **Fixes**:
+    - Resolved compilation errors (duplicate methods, undefined variables).
+    - Fixed UI overflow in `AppBar` by moving OHLC data to the main body.
+    - Improved layout robustness for small screens.
+- **Watchlist**:
+    - Refined item layout: vertically stacked Chart and Delete actions for better space utilization.
+
 ### Persistent Position Monitoring
 1. Placed orders through the new service-based flow.
 2. Verified that `PnLService` immediately picked up the new positions and began tracking TSL.

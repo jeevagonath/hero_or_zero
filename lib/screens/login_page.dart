@@ -49,7 +49,7 @@ class _LoginPageState extends State<LoginPage> {
     final config = await _storageService.getDevConfig();
     if (config['vendorCode']!.isEmpty || config['apiKey']!.isEmpty || config['imei']!.isEmpty) {
       setState(() {
-        _errorMessage = 'Please configure developer settings first';
+        _errorMessage = 'Please configure Shoonya API settings first';
       });
       return;
     }

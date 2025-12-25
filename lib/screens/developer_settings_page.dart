@@ -42,7 +42,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
     );
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Developer settings saved')),
+        const SnackBar(content: Text('Shoonya API settings saved')),
       );
       Navigator.pop(context);
     }
