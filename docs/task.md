@@ -108,3 +108,6 @@
     - [x] Implement Robust Background Retry for Network Failures <!-- id: 169 -->
     - [x] Refine Strike Selection to Strictly OTM (nearest above/below) <!-- id: 170 -->
     - [x] Improve Strike Card UI (Show Strike + Expiry, hide tsym) <!-- id: 171 -->
+    - [x] Rename App Package to `com.android.herozerotrade` <!-- id: 172 -->
+    - [x] Implement Digital App Signing (Keystore & Properties) <!-- id: 173 -->
+    - [x] Configure build.gradle.kts for Release Signing <!-- id: 174 -->

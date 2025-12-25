@@ -104,3 +104,12 @@ Clean up the Dashboard UI by removing redundant stats and fixing the search usab
     - **Trigger**: Total Profit >= ₹200 × Total Lots.
     - **Gap**: ₹150 × Total Lots.
 - **Always-On UI**: The `StrategyPage` now shows a permanent "Portfolio Exit Plan" section with peak profit, current TSL, and the scheduled hard stop time.
+
+### App Signing and Release Preparation
+- **Package Renaming**:
+    - Changed `namespace` and `applicationId` to `com.android.herozerotrade` in `build.gradle.kts`.
+    - Relocated `MainActivity.kt` to the new package directory structure.
+- **Digital Signing**:
+    - Generated a release keystore (`upload-keystore.jks`) in `android/app/`.
+    - Created `key.properties` to store signing credentials.
+    - Updated `build.gradle.kts` to load these properties and use them for the `release` build type.

@@ -55,3 +55,9 @@ I have successfully implemented a robust, background-persistent trading strategy
     - Added a broad search strategy (`Index + Strike`) with intensive filtering to catch all BSE contract variants.
     - Added real-time status updates ("Searching for...") in the UI to provide clear feedback during resolution.
     - Implemented auto-selection for all resolved strikes.
+- **Strict OTM Strike Selection**: Refined the automated strike identification to correctly pick the two nearest strikes strictly above the spot for CE and strictly below the spot for PE. This fixes issues where the closest OTM Put was being skipped.
+- **Improved Strike Display**: Updated the Strategy UI to show human-readable strike information (e.g., "85500 CE") and expiry dates instead of the technical symbol (`tsym`). The `tsym` is now handled hiddenly for order placement.
+- **Release Preparation**:
+    - Renamed the app package to `com.android.herozerotrade` for a unique identity.
+    - Generated a production-ready digital signing keystore.
+    - Configured the Android build system to produce signed APKs, which removes "Harmful App" and "Untrusted Developer" warnings.

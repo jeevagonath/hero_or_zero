@@ -1,4 +1,4 @@
-package com.example.hero_or_zero
+package com.android.herozerotrade
 
 import io.flutter.embedding.android.FlutterActivity
 
