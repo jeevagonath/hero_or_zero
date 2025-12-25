@@ -22,12 +22,24 @@ void main() async {
   await strategyService.init(); // Load strategy state
   final String? uid = await storageService.getUid();
   final String? token = apiService.userToken;
+  
+  // SESSION EXPIRY CHECK
+  final String? lastLoginDate = await storageService.getLastLoginDate();
+  final String today = DateTime.now().toString().split(' ')[0];
 
   Map<String, dynamic>? userData;
+  
   if (token != null && uid != null) {
-    final response = await apiService.getUserDetails(userId: uid);
-    if (response['stat'] == 'Ok') {
-      userData = response;
+    if (lastLoginDate != today) {
+       print('Session Expired: Last login $lastLoginDate, Today $today. Clearing session.');
+       await storageService.clearAll();
+       apiService.clearSession(); 
+       userData = null;
+    } else {
+      final response = await apiService.getUserDetails(userId: uid);
+      if (response['stat'] == 'Ok') {
+        userData = response;
+      }
     }
   }
 

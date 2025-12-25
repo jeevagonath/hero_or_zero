@@ -160,40 +160,46 @@ class _LoginPageState extends State<LoginPage> {
   Widget _buildLogo() {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: const Color(0xFF4D96FF).withOpacity(0.1),
-            shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xFF4D96FF).withOpacity(0.2), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF4D96FF).withOpacity(0.2),
-                blurRadius: 30,
-                spreadRadius: 5,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4D96FF).withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF4D96FF).withOpacity(0.2), width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF4D96FF).withOpacity(0.2),
+                    blurRadius: 20,
+                    spreadRadius: 2,
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: const Icon(
-            Icons.auto_graph_rounded,
-            size: 60,
-            color: Color(0xFF4D96FF),
-          ),
+              child: const Icon(
+                Icons.auto_graph_rounded,
+                size: 32,
+                color: Color(0xFF4D96FF),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Text(
+              'HERO ZERO',
+              style: GoogleFonts.outfit(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+                letterSpacing: 2,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 24),
-        Text(
-          'HERO ZERO',
-          style: GoogleFonts.outfit(
-            fontSize: 36,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-            letterSpacing: 2,
-          ),
-        ),
+        const SizedBox(height: 12),
         Text(
           'ALGORITHMIC TRADING HUB',
           style: GoogleFonts.inter(
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: FontWeight.w800,
             color: Colors.blueGrey,
             letterSpacing: 3,

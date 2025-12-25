@@ -96,3 +96,5 @@ I have completely overhauled the application's design to a premium "Dark Glassmo
     - **Order Book Time**: Fixed time display to use `norentm` for accurate order timestamps.
     - **Watchlist Redesign**: Created a compact, cleaner list item design for the Watchlist and Strategy Strike list.
     - **Lot Size Logic**: Implemented definitive Lot Size retrieval using the `GetOptionChain` API rather than relying on index constants or spot quotes.
+    - **Session Security**: Implemented daily session expiry. The app now tracks the login date and automatically clears the session if opened on a subsequent day, ensuring fresh tokens.
+    - **Login UI**: Refined the login page header for a more compact, single-line "HERO ZERO" logo layout.

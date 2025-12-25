@@ -141,3 +141,5 @@
     - [x] Redesign Strategy Strike Layout (Cleaner, Compact, Delete Btn) <!-- id: 202 -->
     - [x] Implement Watchlist Deletion Feedback (SnackBar) <!-- id: 203 -->
     - [x] Fix Strategy Quantity Logic (Use `GetOptionChain` for Lot Size) <!-- id: 204 -->
+    - [x] Implement Daily Session Expiry (Auto-logout if date changes) <!-- id: 205 -->
+    - [x] Refine Login Page Header (Compact Layout) <!-- id: 206 -->

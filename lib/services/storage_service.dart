@@ -14,15 +14,24 @@ class StorageService {
   static const String _keyImei = 'dev_imei';
   static const String _keyStrategyTime = 'strategy_time';
   static const String _keyExitTime = 'exit_time';
+  static const String _keyLoginDate = 'last_login_date';
 
   Future<void> saveUserToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyUserToken, token);
+    // Auto-save current date as login date
+    final String today = DateTime.now().toString().split(' ')[0]; // yyyy-MM-dd
+    await prefs.setString(_keyLoginDate, today);
   }
 
   Future<String?> getUserToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyUserToken);
+  }
+
+  Future<String?> getLastLoginDate() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyLoginDate);
   }
 
   Future<void> saveUid(String uid) async {
