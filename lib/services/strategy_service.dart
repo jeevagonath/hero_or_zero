@@ -234,13 +234,16 @@ class StrategyService {
 
     // Step size: NIFTY=50, SENSEX=100
     final int step = targetIndex.value == 'NIFTY' ? 50 : 100;
-    final int baseStrike = (spot / step).round() * step;
+
+    // Calculate first OTM CE and PE separately
+    final int ceBase = (spot / step).floor().toInt() * step + step;
+    final int peBase = (spot / step).ceil().toInt() * step - step;
     
     final List<Map<String, dynamic>> targets = [
-      {'strike': baseStrike + step, 'type': 'C'},     // OTM CE 1
-      {'strike': baseStrike + (step * 2), 'type': 'C'}, // OTM CE 2
-      {'strike': baseStrike - step, 'type': 'P'},     // OTM PE 1
-      {'strike': baseStrike - (step * 2), 'type': 'P'}, // OTM PE 2
+      {'strike': ceBase, 'type': 'C'},           // OTM CE 1
+      {'strike': ceBase + step, 'type': 'C'},    // OTM CE 2
+      {'strike': peBase, 'type': 'P'},           // OTM PE 1
+      {'strike': peBase - step, 'type': 'P'},    // OTM PE 2
     ];
 
     for (var s in targets) {
