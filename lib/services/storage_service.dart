@@ -13,6 +13,7 @@ class StorageService {
   static const String _keyApiKey = 'dev_api_key';
   static const String _keyImei = 'dev_imei';
   static const String _keyStrategyTime = 'strategy_time';
+  static const String _keyExitTime = 'exit_time';
 
   Future<void> saveUserToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -88,6 +89,7 @@ class StorageService {
     required int sensexLotSize,
     required bool showTestButton,
     required String strategyTime,
+    required String exitTime,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyNiftyDay, niftyDay);
@@ -96,6 +98,7 @@ class StorageService {
     await prefs.setInt(_keySensexLotSize, sensexLotSize);
     await prefs.setBool(_keyShowTestButton, showTestButton);
     await prefs.setString(_keyStrategyTime, strategyTime);
+    await prefs.setString(_keyExitTime, exitTime);
   }
 
   Future<Map<String, dynamic>> getStrategySettings() async {
@@ -107,6 +110,7 @@ class StorageService {
       'sensexLotSize': prefs.getInt(_keySensexLotSize) ?? 10, // SENSEX Default
       'showTestButton': prefs.getBool(_keyShowTestButton) ?? true,
       'strategyTime': prefs.getString(_keyStrategyTime) ?? '13:15',
+      'exitTime': prefs.getString(_keyExitTime) ?? '15:00',
     };
   }
   // Daily Strategy Capture (Persistence)

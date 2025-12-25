@@ -102,3 +102,7 @@
     - [x] Remove manual refresh buttons and add Execution State indicator <!-- id: 163 -->
     - [x] Implement Quad-Strike Resolution (2 CE, 2 PE) <!-- id: 164 -->
     - [x] Redesign Strategy Status UI (Premium Gradient & Icons) <!-- id: 165 -->
+    - [x] Implement Portfolio-Level Exit Strategy (Unified TSL) <!-- id: 166 -->
+    - [x] Add Configurable hard stop time in Settings <!-- id: 167 -->
+    - [x] Redesign Exit Plan UI (Always showing, Portfolio view) <!-- id: 168 -->
+    - [x] Implement Robust Background Retry for Network Failures <!-- id: 169 -->

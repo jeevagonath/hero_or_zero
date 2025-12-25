@@ -130,8 +130,46 @@ class StrategyService {
     
     if (timeStr.compareTo(strategyTime.value) >= 0) {
       debugPrint('StrategyService: [Auto-Trigger] Time MET. Current: $timeStr, Target: ${strategyTime.value}');
-      captureSpotPrice();
+      _runAutoStrategy();
     }
+  }
+
+  Future<void> _runAutoStrategy() async {
+    // Run spot capture with retries
+    bool captured = await _retry(() => captureSpotPrice(), 
+      name: 'Spot Capture', 
+      maxAttempts: 5,
+      delay: const Duration(seconds: 10)
+    );
+  }
+
+  Future<bool> _retry(Future<void> Function() action, {required String name, int maxAttempts = 3, Duration delay = const Duration(seconds: 5)}) async {
+    int attempts = 0;
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        errorMessage.value = null; // Clear error before retry
+        await action();
+        
+        // If it was captureSpotPrice, success is capturedSpotPrice != null
+        // If it was _generateAndResolveStrikes, success is strikes != empty (or depends on implementation)
+        // Since we wrap actions that update state, we check the relevant state or just return true if no exception.
+        if (errorMessage.value == null) {
+          debugPrint('StrategyService: $name SUCCESS on attempt $attempts');
+          return true;
+        }
+      } catch (e) {
+        debugPrint('StrategyService: $name attempt $attempts FAILED with: $e');
+      }
+      
+      if (attempts < maxAttempts) {
+        statusMessage.value = 'Retrying $name ($attempts/$maxAttempts) in ${delay.inSeconds}s...';
+        debugPrint('StrategyService: Retrying $name in ${delay.inSeconds} seconds...');
+        await Future.delayed(delay);
+      }
+    }
+    debugPrint('StrategyService: $name EXHAUSTED after $maxAttempts attempts.');
+    return false;
   }
 
   Future<void> captureSpotPrice() async {
@@ -224,8 +262,8 @@ class StrategyService {
         statusMessage.value = 'Searching for $query...';
         debugPrint('StrategyService: Searching for "$query"...');
         try {
-          final searchResult = await _apiService.searchScrip(userId: uid, searchText: query);
-          if (searchResult['stat'] == 'Ok' && searchResult['values'] != null) {
+          final searchResult = await _retryWithResult(() => _apiService.searchScrip(userId: uid, searchText: query), name: 'Search $query');
+          if (searchResult != null && searchResult['stat'] == 'Ok' && searchResult['values'] != null) {
             final List<dynamic> values = searchResult['values'];
             
             for (var v in values) {
@@ -253,8 +291,8 @@ class StrategyService {
         statusMessage.value = 'Fetching price for ${bestMatch['tsym']}...';
         String initialLp = '...';
         try {
-          final quote = await _apiService.getQuote(userId: uid, exchange: exchange, token: bestMatch['token'].toString());
-          if (quote['stat'] == 'Ok') {
+          final quote = await _retryWithResult(() => _apiService.getQuote(userId: uid, exchange: exchange, token: bestMatch!['token'].toString()), name: 'Quote ${bestMatch['tsym']}');
+          if (quote != null && quote['stat'] == 'Ok') {
             initialLp = quote['lp']?.toString() ?? '...';
           }
         } catch (e) {
@@ -425,6 +463,22 @@ class StrategyService {
     
     // Refresh PnLService to see new positions
     PnLService().fetchPositions();
+  }
+
+  Future<T?> _retryWithResult<T>(Future<T> Function() action, {required String name, int maxAttempts = 3, Duration delay = const Duration(seconds: 5)}) async {
+    int attempts = 0;
+    while (attempts < maxAttempts) {
+      attempts++;
+      try {
+        return await action();
+      } catch (e) {
+        debugPrint('StrategyService: $name attempt $attempts FAILED with: $e');
+        if (attempts < maxAttempts) {
+          await Future.delayed(delay);
+        }
+      }
+    }
+    return null;
   }
 
   void dispose() {

@@ -88,23 +88,19 @@ Clean up the Dashboard UI by removing redundant stats and fixing the search usab
     - Use a "Glass" effect with subtle opacity and borders.
     - Group logical information (e.g., Time and State) for better hierarchy.
 
-### Robust SENSEX Resolution
+### SENSEX Resolution Enhancements
 - **SENSEX Strike Step**: Use a **100-point step** for SENSEX (instead of 50).
 - **Search Robustness**:
     - Try multiple search patterns (e.g., `targetIndex + strike + " CE"`, `targetIndex + strike + "CE"`, etc.).
     - For BSE (SENSEX), the symbols can be variants like `SENSEX85500CE` or `SENSEX 85500 CE`.
 - **Diagnostic Logging**: Use `debugPrint` for every step of the resolution process to aid troubleshooting.
 
-## Verification Plan
-
-### Manual Verification
-- **Global Trigger**:
-    - Set the strategy time to 1 minute in the future.
-    - Switch to the "Dashboard" or "Positions" tab.
-    - Wait until the time passes, then switch to "Strategy".
-    - Verify that the strikes are already resolved and prices are updating.
-- **Minimized App**:
-    - (For Android) Set the time, minimize the app, wait 1 minute.
-    - Re-open the app and verify the strategy triggered while it was minimized.
-- **Trailing SL**:
-    - Open a position and verify TSL updates in `PnLService` logs even when on the Dashboard.
+### Portfolio-Level Exit Strategy
+- **Unified Tracking**: `PnLService` now tracks a single `portfolioPeakProfit` based on the sum of all strategy positions.
+- **Configurable Hard Stop**: 
+    - Added `exitTime` to `StorageService` (default 15:00).
+    - Added a time picker in `SettingsPage` to modify this exit threshold.
+- **Unified TSL**: TSL is now calculated on the total portfolio P&L:
+    - **Trigger**: Total Profit >= ₹200 × Total Lots.
+    - **Gap**: ₹150 × Total Lots.
+- **Always-On UI**: The `StrategyPage` now shows a permanent "Portfolio Exit Plan" section with peak profit, current TSL, and the scheduled hard stop time.

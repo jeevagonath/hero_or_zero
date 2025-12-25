@@ -40,7 +40,10 @@ I have successfully implemented a robust, background-persistent trading strategy
 ---
 
 
-## Bug Fixes Applied
+## Bug Fixes and Enhancements
+- **Portfolio Exit Logic**: Switched from individual scrip exits to a unified portfolio approach. The strategy now tracks a single "Portfolio Peak Profit" and applies a trailing stop-loss to the total net P&L.
+- **Configurable Hard Stop**: The 3:00 PM exit time is now a setting in the "General" section of the Settings page.
+- **Permanent Exit UI**: The "Portfolio Exit Plan" card is now always visible on the Strategy page, providing constant feedback on TSL activation thresholds and current peak profit.
 - **Compilation Fixes**: Resolved errors related to `ApiService.searchScrip` parameters and missing `PnLService` imports in `StrategyService`.
 - **Exposed Getters**: Added `targetIndex` and `strategyTime` getters to `StrategyService` to fix `StrategyPage` access issues.
 - **Reactive Configuration**: 

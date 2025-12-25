@@ -25,11 +25,27 @@ class PnLService {
   final ValueNotifier<double> totalPnL = ValueNotifier<double>(0.0);
   final ValueNotifier<List<Map<String, dynamic>>> positions = ValueNotifier<List<Map<String, dynamic>>>([]);
   
-  final ValueNotifier<Map<String, dynamic>> exitStatus = ValueNotifier<Map<String, dynamic>>({});
-  Map<String, double> _persistentPeakProfits = {};
+  final ValueNotifier<Map<String, dynamic>> portfolioExitStatus = ValueNotifier<Map<String, dynamic>>({
+    'peakProfit': 0.0,
+    'tsl': -999999.0,
+    'totalLots': 0.0,
+    'exitTime': '15:00',
+  });
+  double _peakProfit = 0.0;
+  final Set<String> _exitingTokens = {};
 
   Future<void> _initFromStorage() async {
-    _persistentPeakProfits = await _storageService.getPeakProfits();
+    final settings = await _storageService.getStrategySettings();
+    final String exitT = settings['exitTime'] ?? '15:00';
+    
+    final savedProfits = await _storageService.getPeakProfits();
+    _peakProfit = savedProfits['portfolio'] ?? 0.0;
+    
+    portfolioExitStatus.value = {
+      ...portfolioExitStatus.value,
+      'peakProfit': _peakProfit,
+      'exitTime': exitT,
+    };
   }  
   StreamSubscription? _wsSubscription;
   bool _isFetching = false;
@@ -105,10 +121,9 @@ class PnLService {
 
   void _calculateTotalPnL() {
     double total = 0.0;
-    final Map<String, dynamic> currentExitStatus = Map.from(exitStatus.value);
+    double totalLots = 0.0;
 
     for (var pos in positions.value) {
-      final String token = pos['token'] ?? '';
       final double rpnl = double.tryParse(pos['rpnl']?.toString() ?? '0') ?? 0.0;
       final double netqty = double.tryParse(pos['netqty']?.toString() ?? '0') ?? 0.0;
       final double lp = double.tryParse(pos['lp']?.toString() ?? '0') ?? 0.0;
@@ -119,66 +134,75 @@ class PnLService {
       final double urmtom = netqty * (lp - netavgprc) * prcftr;
       final double currentPnL = rpnl + urmtom;
       total += currentPnL;
-
+      
       if (netqty != 0) {
-        final double numLots = netqty.abs() / lotSize;
-        final double pnlPerLot = currentPnL / numLots;
-
-        var status = currentExitStatus[token] ?? {
-          'tsym': pos['tsym'],
-          'peakProfitPerLot': _persistentPeakProfits[token] ?? 0.0,
-          'tslPerLot': -999999.0,
-          'lots': numLots,
-        };
-
-        if (status['tslPerLot'] == -999999.0 && status['peakProfitPerLot'] >= 200) {
-            status['tslPerLot'] = status['peakProfitPerLot'] - 150;
-        }
-
-        if (pnlPerLot > (status['peakProfitPerLot'] ?? 0.0)) {
-          status['peakProfitPerLot'] = pnlPerLot;
-          _persistentPeakProfits[token] = pnlPerLot;
-          _storageService.savePeakProfits(_persistentPeakProfits);
-          
-          if (pnlPerLot >= 200) {
-            status['tslPerLot'] = pnlPerLot - 150;
-          }
-        }
-        currentExitStatus[token] = status;
-
-        if (status['tslPerLot'] != -999999.0 && pnlPerLot <= status['tslPerLot']) {
-          _autoSquareOff(pos, 'Trailing SL Hit');
-        }
+        totalLots += netqty.abs() / lotSize;
       }
     }
+    
     totalPnL.value = total;
-    exitStatus.value = currentExitStatus;
+
+    // Portfolio Exit Logic
+    if (totalLots > 0) {
+      final status = Map<String, dynamic>.from(portfolioExitStatus.value);
+      status['totalLots'] = totalLots;
+
+      // Trigger TSL activation if total profit >= 200 * totalLots
+      final double activationThreshold = 200.0 * totalLots;
+      final double trailingGap = 150.0 * totalLots;
+
+      if (total > _peakProfit) {
+        _peakProfit = total;
+        status['peakProfit'] = _peakProfit;
+        _storageService.savePeakProfits({'portfolio': _peakProfit});
+      }
+
+      if (status['tsl'] == -999999.0 && _peakProfit >= activationThreshold) {
+        status['tsl'] = _peakProfit - trailingGap;
+      } else if (status['tsl'] != -999999.0 && _peakProfit > status['peakProfit']) {
+         // Trail the SL if peak moves up
+         status['tsl'] = _peakProfit - trailingGap;
+      }
+
+      portfolioExitStatus.value = status;
+
+      // Check for TSL Hit
+      if (status['tsl'] != -999999.0 && total <= status['tsl']) {
+        squareOffAll('Portfolio Trailing SL Hit');
+      }
+    }
   }
 
   void _startExitMonitor() {
     _exitMonitorTimer?.cancel();
     _exitMonitorTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       final now = DateTime.now();
-      if (now.hour == 15 && now.minute == 0) {
-        squareOffAll('Time-Based Exit (3:00 PM)');
+      final String currentHhMm = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      final String exitT = portfolioExitStatus.value['exitTime'] ?? '15:00';
+      
+      if (currentHhMm == exitT) {
+        squareOffAll('Time-Based Exit ($exitT)');
       }
       fetchPositions();
     });
   }
 
+  Future<void> refreshSettings() async {
+    await _initFromStorage();
+  }
+
   Future<void> _autoSquareOff(Map<String, dynamic> position, String reason) async {
     final String token = position['token'] ?? '';
-    if (exitStatus.value[token]?['isExiting'] == true) return;
+    if (_exitingTokens.contains(token)) return;
 
-    final Map<String, dynamic> newStatus = Map.from(exitStatus.value);
-    newStatus[token]['isExiting'] = true;
-    exitStatus.value = newStatus;
+    _exitingTokens.add(token);
 
     print('Auto Squaring Off ${position['tsym']} due to $reason');
     await _apiService.squareOffPosition(
       userId: _apiService.userId ?? await _storageService.getUid() ?? '',
       position: position,
     );
+    _exitingTokens.remove(token);
     await fetchPositions();
   }
 
@@ -186,7 +210,8 @@ class PnLService {
     final String? uid = _apiService.userId ?? await _storageService.getUid();
     if (uid == null) return;
 
-    for (var pos in positions.value) {
+    final currentPositions = List<Map<String, dynamic>>.from(positions.value);
+    for (var pos in currentPositions) {
       final double netqty = double.tryParse(pos['netqty']?.toString() ?? '0') ?? 0;
       if (netqty != 0) {
         await _apiService.squareOffPosition(
@@ -195,6 +220,15 @@ class PnLService {
         );
       }
     }
+    
+    // Clear peak profit after square off all
+    _peakProfit = 0;
+    _storageService.clearPeakProfits();
+    final status = Map<String, dynamic>.from(portfolioExitStatus.value);
+    status['peakProfit'] = 0.0;
+    status['tsl'] = -999999.0;
+    portfolioExitStatus.value = status;
+
     await fetchPositions();
   }
 

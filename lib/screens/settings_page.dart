@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
 import '../services/strategy_service.dart';
+import '../services/pnl_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -17,6 +18,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _niftyDay = 'Tuesday';
   String _sensexDay = 'Thursday';
   String _strategyTime = '13:15';
+  String _exitTime = '15:00';
   final TextEditingController _niftyLotController = TextEditingController();
   final TextEditingController _sensexLotController = TextEditingController();
   bool _showTestButton = true;
@@ -37,6 +39,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _sensexLotController.text = settings['sensexLotSize'].toString();
       _showTestButton = settings['showTestButton'];
       _strategyTime = settings['strategyTime'];
+      _exitTime = settings['exitTime'] ?? '15:00';
       _isLoading = false;
     });
   }
@@ -49,10 +52,12 @@ class _SettingsPageState extends State<SettingsPage> {
       sensexLotSize: int.tryParse(_sensexLotController.text) ?? 10,
       showTestButton: _showTestButton,
       strategyTime: _strategyTime,
+      exitTime: _exitTime,
     );
     
-    // Notify StrategyService to reload new settings
+    // Notify StrategyService and PnLService to reload new settings
     await _strategyService.refreshSettings();
+    await PnLService().refreshSettings();
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -87,7 +92,8 @@ class _SettingsPageState extends State<SettingsPage> {
                   _buildTextFieldRow('Lot Size', _sensexLotController),
                   const SizedBox(height: 32),
                   _buildSectionHeader('General Settings'),
-                  _buildTimePickerRow('Strategy Trigger Time', _strategyTime),
+                  _buildTimePickerRow('Strategy Trigger Time', _strategyTime, (val) => setState(() => _strategyTime = val)),
+                  _buildTimePickerRow('Daily Exit Time (Hard Stop)', _exitTime, (val) => setState(() => _exitTime = val)),
                   _buildSwitchRow('Show Test Capture Button', _showTestButton, (val) => setState(() => _showTestButton = val)),
                   const SizedBox(height: 48),
                   SizedBox(
@@ -172,7 +178,7 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  Widget _buildTimePickerRow(String label, String value) {
+  Widget _buildTimePickerRow(String label, String value, ValueChanged<String> onSelected) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -205,7 +211,7 @@ class _SettingsPageState extends State<SettingsPage> {
               );
               if (pickedTime != null) {
                 final formattedTime = '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}';
-                setState(() => _strategyTime = formattedTime);
+                onSelected(formattedTime);
               }
             },
             child: Container(
