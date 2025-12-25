@@ -126,6 +126,8 @@ class ApiService {
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
       );
 
+      print('API Response for GetQuote: ${response.statusCode}');
+      print('API Body for GetQuote: ${response.body}');
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
@@ -158,7 +160,8 @@ class ApiService {
       'trantype': transactionType,
       'prd': productType,
       'ret': ret,
-      'prdty': orderType,
+      'prctyp': orderType,
+      'ordersource': 'API',
     };
 
     if (triggerPrice != null) {

@@ -1,63 +1,104 @@
-# Task: Research Shoonya API Documentation
+# Task: Implement Exit Strategy and Controls
 
-- [x] Research Shoonya API documentation <!-- id: 0 -->
-    - [x] Visit https://shoonya.com/api-documentation and extract key information <!-- id: 1 -->
-    - [x] Document authentication flow <!-- id: 2 -->
-    - [x] Document core endpoints (Order placement, P&L, Market Data) <!-- id: 3 -->
-- [x] Review existing implementation in `api_service.dart` <!-- id: 4 -->
-- [x] Align documentation with project needs <!-- id: 5 -->
-    - [x] Extend ApiService with missing endpoints <!-- id: 6 -->
-    - [x] Implement WebSocket service for live data <!-- id: 7 -->
-- [x] Fix local storage `usertoken` persistence <!-- id: 8 -->
-- [x] Implement Dashboard with live NIFTY 50 and SENSEX data <!-- id: 9 -->
-    - [x] Update `main.dart` for auto-login <!-- id: 10 -->
-    - [x] Update Dashboard to use WebSocket for live index prices <!-- id: 11 -->
-    - [x] Refine price change calculation (LTP - Open) <!-- id: 12 -->
-- [x] Ensure robust WebSocket connectivity <!-- id: 13 -->
-    - [x] Implement auto-reconnect in `WebSocketService` <!-- id: 14 -->
-    - [x] Add heartbeat/ping logic <!-- id: 15 -->
-    - [x] Handle re-subscription on reconnect <!-- id: 16 -->
-- [x] Implement Scrip Search on Dashboard <!-- id: 17 -->
-    - [x] Add search text field and floating results <!-- id: 18 -->
-    - [x] Handle scrip selection and storage <!-- id: 19 -->
-    - [x] Integrate selected scrip with WebSocket for live updates <!-- id: 20 -->
-    - [x] Display selected scrip card with live price <!-- id: 21 -->
-- [x] Implement Automated Trading Strategy <!-- id: 22 -->
-    - [x] Create Settings page for configuration <!-- id: 23 -->
-    - [x] Implement spot price capture at 1:15 PM <!-- id: 24 -->
-    - [x] Implement strike selection logic (NIFTY/SENSEX) <!-- id: 25 -->
-    - [x] Add checkboxes for user selection <!-- id: 26 -->
-    - [x] Implement "Place Order" (Market Buy) through API <!-- id: 27 -->
-    - [x] Add persistence for strategy state and settings <!-- id: 28 -->
-- [x] Integrate Live Prices for Strategy Strikes <!-- id: 29 -->
-    - [x] Implement contract search for NIFTY/SENSEX options <!-- id: 30 -->
-    - [x] Subscribe strategy strikes to `WebSocketService` <!-- id: 31 -->
-    - [x] Update UI with real-time LTP for each strike <!-- id: 32 -->
-    - [x] Handle unsubscription and cleanup <!-- id: 33 -->
-- [x] Add configurable Test Capture button <!-- id: 34 -->
-    - [x] Persist preference in `StorageService` <!-- id: 35 -->
-    - [x] Add toggle in `SettingsPage` <!-- id: 36 -->
-    - [x] Conditionally show button in `StrategyPage` <!-- id: 37 -->
-- [x] Implement User Logout <!-- id: 38 -->
-    - [x] Add logout method to `ApiService` <!-- id: 39 -->
-    - [x] Add logout button to `UserDetailsPage` <!-- id: 40 -->
-    - [x] Handle navigation to `LoginPage` after logout <!-- id: 41 -->
-- [x] Implement Persistent Developer Settings on Login <!-- id: 42 -->
-    - [x] Update `StorageService` to persist API config (Vendor, IMEI, API Key) <!-- id: 43 -->
-    - [x] Create `DeveloperSettingsPage` UI <!-- id: 44 -->
-    - [x] Add settings icon to `LoginPage` and integrate storage config <!-- id: 45 -->
-    - [x] Update `main.dart` with new route <!-- id: 46 -->
-- [x] Implement Positions Page and Global P&L <!-- id: 47 -->
-    - [x] Update `ApiService.getPositionBook` with `actid` <!-- id: 48 -->
-    - [x] Create `PnLService` for live P&L tracking <!-- id: 49 -->
-    - [x] Add global P&L header in `MainScreen` <!-- id: 50 -->
-    - [x] Build `PositionsPage` UI with live updates <!-- id: 51 -->
-    - [x] Integrate WebSocket for position LTP updates <!-- id: 52 -->
-- [x] Implement Order Book Page <!-- id: 53 -->
-    - [x] Update `ApiService.getOrderBook` if needed <!-- id: 54 -->
-    - [x] Build `OrderBookPage` UI <!-- id: 55 -->
-    - [x] Add filtering and status color coding <!-- id: 56 -->
-- [x] Implement Trade Book Page <!-- id: 57 -->
-    - [x] Update `ApiService.getTradeBook` with `actid` <!-- id: 58 -->
-    - [x] Build `TradeBookPage` UI <!-- id: 59 -->
-    - [x] Handle "no data" case for trade book <!-- id: 60 -->
+- [x] Implement Exit Strategy Logic <!-- id: 61 -->
+    - [x] Extend `ApiService` with `squareOffPosition` <!-- id: 62 -->
+    - [x] Update `PnLService` to track Peak Profit and TSL <!-- id: 63 -->
+    - [x] Implement Time-Based Exit (3:00 PM) in `PnLService` <!-- id: 64 -->
+    - [x] Implement Automated Square-Off on TSL hit <!-- id: 65 -->
+- [x] Update Positions Page UI <!-- id: 66 -->
+    - [x] Add "Close" button for individual positions <!-- id: 67 -->
+    - [x] Add "Close All" button on Positions screen <!-- id: 68 -->
+- [x] Update Strategy Page UI <!-- id: 69 -->
+    - [x] Display Exit Plan Cards (Responsive Grid) <!-- id: 70 -->
+    - [x] Show Peak Profit and Current Trailing Stop-Loss <!-- id: 71 -->
+    - [x] Ensure Tablet/Mobile compatibility <!-- id: 72 -->
+- [x] Persistence for TSL state <!-- id: 73 -->
+    - [x] Save/Load Peak Profit in `StorageService` <!-- id: 74 -->
+- [x] Strategy Page UI Refinements <!-- id: 75 -->
+    - [x] Remove strategy title <!-- id: 76 -->
+    - [x] Fix time display overflow on mobile <!-- id: 77 -->
+- [x] Fix Strategy Capture Logic <!-- id: 78 -->
+    - [x] Relax 1:15 PM trigger condition to ">= 1:15 PM" <!-- id: 79 -->
+    - [x] Ensure capture only happens once per day <!-- id: 80 -->
+- [x] Troubleshoot Missing Strike Cards <!-- id: 81 -->
+    - [x] Improve UI status feedback (Capturing/Resolving/Error) <!-- id: 82 -->
+    - [x] Robust contract matching for PE/CE and P/C in `tsym` <!-- id: 83 -->
+    - [x] Add explicit error handling/retry for capture failures <!-- id: 84 -->
+- [x] Redesign Strike Selection UI <!-- id: 85 -->
+    - [x] Implement side-by-side layout (PE left, CE right) <!-- id: 86 -->
+    - [x] Integrate checkboxes and real-time LTP display in new layout <!-- id: 87 -->
+    - [x] Ensure responsiveness for mobile/tablet <!-- id: 88 -->
+- [x] Redesign & Fix Strike Selection UI <!-- id: 89 -->
+    - [x] Pivot to vertical list of tall cards (full width) <!-- id: 90 -->
+    - [x] Implement deep WebSocket debugging to fix LTP display <!-- id: 91 -->
+    - [x] Ensure full symbol visibility without truncation <!-- id: 92 -->
+    - [x] Verify real-time updates after app restart <!-- id: 93 -->
+    - [x] Added manual "Resubscribe" button for troubleshooting <!-- id: 94 -->
+- [x] Implement Strategy Persistence & Lock-in <!-- id: 95 -->
+    - [x] Update `StorageService` to save/load daily capture data <!-- id: 96 -->
+    - [x] Update `StrategyPage` to reload today's capture on init <!-- id: 97 -->
+    - [x] Refine 1:15 PM trigger to respect existing daily capture <!-- id: 98 -->
+    - [x] Ensure manual "Test Capture" also persists the selection <!-- id: 99 -->
+- [x] Refine Dashboard & Watchlist <!-- id: 100 -->
+    - [x] Remove "Quick Stats" from Dashboard <!-- id: 101 -->
+    - [x] Fix search results overlay (stop hiding search box) <!-- id: 102 -->
+    - [x] Add `addMultiScripsToMW` & `deleteMultiMWScrips` to `ApiService` <!-- id: 103 -->
+    - [x] Sync watchlist changes with Shoonya backend <!-- id: 104 -->
+    - [x] Sync watchlist changes with WebSocket subscriptions <!-- id: 105 -->
+    - [x] Implement scrip delete UI in Dashboard <!-- id: 106 -->
+    - [x] Ensure full symbol visibility in watchlist <!-- id: 107 -->
+- [x] Refine Strategy Selection & Prices <!-- id: 108 -->
+    - [x] Default unselect all resolved strikes <!-- id: 109 -->
+    - [x] Fetch initial LTP during strike resolution <!-- id: 110 -->
+    - [x] Debug missing LTP in Strategy Page <!-- id: 111 -->
+    - [x] Fix WebSocket message type check (add `tk`) <!-- id: 112 -->
+    - [x] Add verbose logging for `getQuote` and updates <!-- id: 113 -->
+- [x] Refine Strategy Page UI <!-- id: 114 -->
+- [x] Fix Strategy Order Placement <!-- id: 115 -->
+    - [x] Correct `prdty` to `prctyp` in `ApiService.placeOrder` <!-- id: 116 -->
+    - [x] Add `ordersource: 'API'` in `ApiService.placeOrder` <!-- id: 117 -->
+    - [x] Update `StrategyPage._placeOrders` to use `M` (NRML) as product <!-- id: 118 -->
+    - [x] Ensure correct `exch` (NFO/BFO) and `qty` are passed from `StrategyPage` <!-- id: 119 -->
+    - [x] Implement robust error reporting in `StrategyPage` <!-- id: 120 -->
+- [x] Implement Dynamic Order Quantity (Strike-based - Superseded) <!-- id: 121 -->
+- [x] Refine Lot Size from Index Scrip <!-- id: 125 -->
+    - [x] Capture `ls` from Index (NIFTY50/SENSEX) during spot capture <!-- id: 126 -->
+    - [x] Store `indexLotSize` in strategy state <!-- id: 127 -->
+    - [x] Update `_placeOrders` to use `userLots * indexLotSize` <!-- id: 128 -->
+    - [x] Remove strike-specific `ls` logic <!-- id: 129 -->
+- [x] Refine Order Book UI <!-- id: 130 -->
+    - [x] Handle null `fillshares` to show `0` instead of `null` <!-- id: 131 -->
+- [x] Configurable Strategy Time & Strike Deletion <!-- id: 132 -->
+    - [x] Update `StorageService` to store `strategyTime` <!-- id: 133 -->
+    - [x] Add time picker in `SettingsPage` <!-- id: 134 -->
+    - [x] Respect `strategyTime` in `StrategyPage` trigger logic <!-- id: 135 -->
+    - [x] Implement strike deletion in `StrategyPage` (UI & Logic) <!-- id: 136 -->
+    - [x] Sync strike deletion with local storage <!-- id: 137 -->
+- [x] Conditional Place Order Button <!-- id: 138 -->
+    - [x] Hide button if no strikes are selected <!-- id: 139 -->
+    - [x] Ensure button only appears after spot capture <!-- id: 140 -->
+- [x] Background Strategy Service <!-- id: 141 -->
+    - [x] Create `StrategyService` (singleton) <!-- id: 142 -->
+    - [x] Move trigger logic (`_checkStrategyCondition`) to `StrategyService` <!-- id: 143 -->
+    - [x] Move strike resolution logic to `StrategyService` <!-- id: 144 -->
+    - [x] Initialize `StrategyService` in `main.dart` <!-- id: 145 -->
+    - [x] Refactor `StrategyPage` to consume `StrategyService` state <!-- id: 146 -->
+    - [x] Ensure TSL monitoring in `PnLService` is always active <!-- id: 147 -->
+- [x] Reactive Strategy Settings <!-- id: 148 -->
+    - [x] Convert `targetIndex` and `strategyTime` to `ValueNotifier` <!-- id: 149 -->
+    - [x] Implement `refreshSettings` in `StrategyService` <!-- id: 150 -->
+    - [x] Update `SettingsPage` to trigger refresh on save <!-- id: 151 -->
+    - [x] Update `StrategyPage` UI to listen for config changes <!-- id: 152 -->
+- [x] Robust Strategy Trigger <!-- id: 153 -->
+    - [x] Relax time trigger to `>=` comparison <!-- id: 154 -->
+    - [x] Add diagnostic logs for trigger decision tracking <!-- id: 155 -->
+- [x] Fix SENSEX Resolution <!-- id: 156 -->
+    - [x] Implement 100-point strike step for SENSEX <!-- id: 157 -->
+    - [x] Add multi-pattern search for BSE contracts <!-- id: 158 -->
+    - [x] Implement "Reset Strategy" feature <!-- id: 159 -->
+    - [x] Ensure error visibility in UI after spot capture <!-- id: 160 -->
+    - [x] Broaden SENSEX search and add real-time UI feedback <!-- id: 161 -->
+    - [x] Hide "Test Capture" button based on settings <!-- id: 162 -->
+    - [x] Remove manual refresh buttons and add Execution State indicator <!-- id: 163 -->
+    - [x] Implement Quad-Strike Resolution (2 CE, 2 PE) <!-- id: 164 -->
+    - [x] Redesign Strategy Status UI (Premium Gradient & Icons) <!-- id: 165 -->

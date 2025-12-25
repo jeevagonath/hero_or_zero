@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 import 'websocket_service.dart';
@@ -11,6 +10,12 @@ class PnLService {
   PnLService._internal() {
     _initFromStorage();
     _startExitMonitor();
+    // Initial fetch if user is likely logged in
+    _storageService.getUid().then((uid) {
+      if (uid != null) {
+        fetchPositions();
+      }
+    });
   }
 
   final ApiService _apiService = ApiService();
@@ -20,7 +25,6 @@ class PnLService {
   final ValueNotifier<double> totalPnL = ValueNotifier<double>(0.0);
   final ValueNotifier<List<Map<String, dynamic>>> positions = ValueNotifier<List<Map<String, dynamic>>>([]);
   
-  // Track peak profit and TSL per token
   final ValueNotifier<Map<String, dynamic>> exitStatus = ValueNotifier<Map<String, dynamic>>({});
   Map<String, double> _persistentPeakProfits = {};
 
@@ -35,26 +39,30 @@ class PnLService {
     if (_isFetching) return;
     _isFetching = true;
 
-    final String? uid = _apiService.userId;
+    final String? uid = _apiService.userId ?? await _storageService.getUid();
     if (uid == null) {
       _isFetching = false;
       return;
     }
 
-    final result = await _apiService.getPositionBook(userId: uid);
-    if (result['stat'] == 'Ok' && result['positions'] != null) {
-      final List<dynamic> posList = result['positions'];
-      final List<Map<String, dynamic>> updatedPositions = posList.map((p) => Map<String, dynamic>.from(p)).toList();
-      
-      positions.value = updatedPositions;
-      _subscribeToPositions(updatedPositions);
-      _calculateTotalPnL();
-    } else if (result['emsg']?.toString().toLowerCase().contains('no data') ?? false) {
-      positions.value = [];
-      totalPnL.value = 0.0;
+    try {
+      final result = await _apiService.getPositionBook(userId: uid);
+      if (result['stat'] == 'Ok' && result['positions'] != null) {
+        final List<dynamic> posList = result['positions'];
+        final List<Map<String, dynamic>> updatedPositions = posList.map((p) => Map<String, dynamic>.from(p)).toList();
+        
+        positions.value = updatedPositions;
+        _subscribeToPositions(updatedPositions);
+        _calculateTotalPnL();
+      } else if (result['emsg']?.toString().toLowerCase().contains('no data') ?? false) {
+        positions.value = [];
+        totalPnL.value = 0.0;
+      }
+    } catch (e) {
+      print('PnLService Fetch Error: $e');
+    } finally {
+      _isFetching = false;
     }
-    
-    _isFetching = false;
   }
 
   void _subscribeToPositions(List<Map<String, dynamic>> posList) {
@@ -113,18 +121,16 @@ class PnLService {
       total += currentPnL;
 
       if (netqty != 0) {
-        // Trailing SL Logic
         final double numLots = netqty.abs() / lotSize;
         final double pnlPerLot = currentPnL / numLots;
 
         var status = currentExitStatus[token] ?? {
           'tsym': pos['tsym'],
           'peakProfitPerLot': _persistentPeakProfits[token] ?? 0.0,
-          'tslPerLot': -999999.0, // Indicated as not active
+          'tslPerLot': -999999.0,
           'lots': numLots,
         };
 
-        // Recalculate TSL from stored peak if not already set (e.g. after restart)
         if (status['tslPerLot'] == -999999.0 && status['peakProfitPerLot'] >= 200) {
             status['tslPerLot'] = status['peakProfitPerLot'] - 150;
         }
@@ -134,15 +140,12 @@ class PnLService {
           _persistentPeakProfits[token] = pnlPerLot;
           _storageService.savePeakProfits(_persistentPeakProfits);
           
-          // Update TSL if threshold ₹200 met
           if (pnlPerLot >= 200) {
-            // TSL = PeakProfit - 150
             status['tslPerLot'] = pnlPerLot - 150;
           }
         }
         currentExitStatus[token] = status;
 
-        // Auto-exit if TSL hit
         if (status['tslPerLot'] != -999999.0 && pnlPerLot <= status['tslPerLot']) {
           _autoSquareOff(pos, 'Trailing SL Hit');
         }
@@ -156,16 +159,15 @@ class PnLService {
     _exitMonitorTimer?.cancel();
     _exitMonitorTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       final now = DateTime.now();
-      // 3:00 PM Exit
       if (now.hour == 15 && now.minute == 0) {
         squareOffAll('Time-Based Exit (3:00 PM)');
       }
+      fetchPositions();
     });
   }
 
   Future<void> _autoSquareOff(Map<String, dynamic> position, String reason) async {
     final String token = position['token'] ?? '';
-    // Prevent multiple triggers
     if (exitStatus.value[token]?['isExiting'] == true) return;
 
     final Map<String, dynamic> newStatus = Map.from(exitStatus.value);
@@ -174,19 +176,21 @@ class PnLService {
 
     print('Auto Squaring Off ${position['tsym']} due to $reason');
     await _apiService.squareOffPosition(
-      userId: _apiService.userId ?? '',
+      userId: _apiService.userId ?? await _storageService.getUid() ?? '',
       position: position,
     );
-    // Refresh positions after square-off
     await fetchPositions();
   }
 
   Future<void> squareOffAll([String reason = 'Manual Close All']) async {
+    final String? uid = _apiService.userId ?? await _storageService.getUid();
+    if (uid == null) return;
+
     for (var pos in positions.value) {
       final double netqty = double.tryParse(pos['netqty']?.toString() ?? '0') ?? 0;
       if (netqty != 0) {
         await _apiService.squareOffPosition(
-          userId: _apiService.userId ?? '',
+          userId: uid,
           position: pos,
         );
       }
@@ -195,8 +199,11 @@ class PnLService {
   }
 
   Future<void> squareOffSingle(Map<String, dynamic> position) async {
+    final String? uid = _apiService.userId ?? await _storageService.getUid();
+    if (uid == null) return;
+
     await _apiService.squareOffPosition(
-      userId: _apiService.userId ?? '',
+      userId: uid,
       position: position,
     );
     await fetchPositions();

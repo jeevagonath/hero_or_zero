@@ -1,140 +1,110 @@
-# Shoonya API Service Extension
+# Dashboard and Watchlist Refinements
 
-Extend the `ApiService` to include missing core functionalities required for trading, based on the Shoonya API documentation.
+Clean up the Dashboard UI by removing redundant stats and fixing the search usability issues.
 
 ## Proposed Changes
 
-### [ApiService Extension]
+### Shoonya API Extensions
 
-#### [MODIFY] [main.dart](file:///d:/FlutterApps/hero_or_zero/lib/main.dart)
+#### [MODIFY] [api_service.dart](file:///d:/FlutterApps/hero_or_zero/lib/services/api_service.dart)
+- **`addMultiScripsToMW(String scrips)`**:
+    - Call `/NorenWClientTP/AddMultiScripsToMW`.
+    - Params: `uid`, `wlname` (e.g., "DEFAULT"), `scrips` (format: `EXCH|TOKEN#EXCH|TOKEN`).
+- **`deleteMultiMWScrips(String scrips)`**:
+    - Call `/NorenWClientTP/DeleteMultiMWScrips`.
+    - Params: same as above.
 
-- Initialize `ApiService` and load token from storage.
-- Check if token exists; if so, navigate to `MainScreen`.
-- If no token, show `LoginPage`.
+### Dashboard & Watchlist Refinement
 
 #### [MODIFY] [dashboard_placeholder_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/dashboard_placeholder_page.dart)
+- **UI Cleanup**:
+    - Remove `_buildQuickStats`.
+    - Change `_buildSearchResultsOverlay` to a height-limited `ListView` embedded directly in the main `Column` when searching, so it doesn't float over the text box.
+- **Backend Sync**:
+    - When adding a scrip: call `addMultiScripsToMW` then subscribe to WS.
+    - When deleting a scrip: call `deleteMultiMWScrips` then unsubscribe from WS.
+- **Layout Robustness**:
+    - Wrap the scrip name in `Expanded` in `_buildScripCard`.
+    - **Remove `TextOverflow.ellipsis`** from the symbol name to ensure the full name is visible.
+    - If needed, use a `Column` or `FittedBox` to handle extremely long names gracefully without layout overflow.
 
-- Capture `o` (Open) price from WebSocket ticks.
-- Calculate `absChange` as `LTP - Open`.
-- Calculate `percentageChange` as `(absChange / Open) * 100`.
-- Update `_buildIndexCard` to display these calculated values correctly.
-
-#### [MODIFY] [websocket_service.dart](file:///d:/FlutterApps/hero_or_zero/lib/services/websocket_service.dart)
-
-- Implement `_reconnect` logic with exponential backoff.
-- Add periodic heartbeat (ping) to keep connection alive.
-- Maintain a list of active subscriptions to re-subscribe upon reconnection.
-
-#### [NEW] [settings_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/settings_page.dart)
-
-- Configuration for NIFTY/SENSEX trading days.
-- Configuration for NIFTY/SENSEX lot sizes.
-- Persistent storage using `StorageService`.
-
-#### [MODIFY] [strategy_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/strategy_page.dart)
-
-- Convert to `StatefulWidget`.
-- Monitor time and capture spot price at 1:15 PM on designated days.
-- Logic to find OTM/ATM strikes (+/- 50 for NIFTY, +/- 100 for SENSEX).
-- Display selectable strikes.
-- Execute market buy orders via `ApiService.placeOrder`.
+### Configurable Strategy Time & Strike Deletion
 
 #### [MODIFY] [storage_service.dart](file:///d:/FlutterApps/hero_or_zero/lib/services/storage_service.dart)
+- **New Constant**: Add `_keyStrategyTime = 'strategy_time'`.
+- **Update `saveStrategySettings`**: Add `strategyTime` parameter.
+- **Update `getStrategySettings`**: Return `strategyTime` (default '13:15').
 
-- Add helpers to save/load strategy configuration and state.
-
-#### [MODIFY] [user_details_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/user_details_page.dart)
-
-- Add a "Settings" link/button.
-
-### Strategy Live Prices Integration
+#### [MODIFY] [settings_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/settings_page.dart)
+- **UI Component**: Add a row to allow users to set the strategy trigger time via `showTimePicker`.
+- **State**: Add `_strategyTime` state variable.
+- **Save Logic**: Include `_strategyTime` in the `_saveSettings` call.
 
 #### [MODIFY] [strategy_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/strategy_page.dart)
+- **Time Logic**: Update `_checkStrategyCondition` to parse and respect the `strategyTime` from settings.
+- **Strike Deletion**:
+    - Add a `_deleteStrike(int index)` method.
+    - Inside `_deleteStrike`, unsubscribe from the WebSocket for that strike's token.
+    - Update the `_strikes` list and call `setState`.
+    - Save the updated `_strikes` list to `daily_strategy_capture` via `StorageService`.
+- **UI Enhancement**: 
+    - Add a `delete` icon next to the price display in the strike card.
+- **Persistence**:
+    - Ensure `_indexLotSize` and `strategyTime` are correctly handled during initialization.
 
-- **Contract Resolution**: After spot capture, use `ApiService.searchScrip` to find the exact `token` and `tsym` for the generated strikes.
-- **WebSocket Subscription**:
-    - Manage a list of active strategy subscriptions.
-    - Call `WebSocketService.subscribeTouchline` for each confirmed contract.
-- **Price Updates**:
-    - Listen to `WebSocketService.messageStream`.
-    - Update the `_strikes` list with the latest `lp` (Last Traded Price).
-- **UI Enhancement**:
-    - Display the live LTP next to each strike in the selection list.
-    - Show "Loading..." or "Searching..." while contracts are being resolved.
+### Index-Level Lot Size Refinement
+- **Source of Truth**: The system now fetches the **standard lot size (`ls`)** directly from the base index (**NIFTY 50** or **SENSEX**) during the initial spot capture.
+- **Unified Quantity**: This index lot size is used consistently for all strategy strikes, regardless of individual strike responses.
+- **Simplified Calculation**: Final quantity is now strictly `User Settings Lots × Index Lot Size` (e.g., 2 Lots × 75 LS = 150 units for Nifty).
+- **Day Persistence**: The captured lot size is saved for the day, ensuring the calculation stays consistent even if the app is restarted.
 
-### 11. User Logout
+### Background Strategy Service
 
-#### [MODIFY] [api_service.dart](file:///d:/FlutterApps/hero_or_zero/lib/services/api_service.dart)
-- Add `logout()` to clear `_userToken` and `_userId`.
-
-#### [MODIFY] [user_details_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/user_details_page.dart)
-- Add a "Logout" button at the bottom of the page.
-- Implement logic to clear storage and navigate to `LoginPage`.
-
-- Ensure `/login` route is available if needed, though simple `PushReplacement` usually suffices.
-
-### 12. Persistent Developer Settings
-
-#### [MODIFY] [storage_service.dart](file:///d:/FlutterApps/hero_or_zero/lib/services/storage_service.dart)
-- Add constants and methods for saving/loading `vendorCode`, `apiKey`, and `imei`.
-- Ensure these are NOT included in the `clearAll()` method used for logout.
-
-#### [NEW] [developer_settings_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/developer_settings_page.dart)
-- UI with text fields for Vendor Code, API Key, and IMEI.
-- Save to `StorageService`.
-
-#### [MODIFY] [login_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/login_page.dart)
-- Add a settings icon button in the header.
-- On initialization, load developer configs.
-- Use stored configs for the `quickAuth` call instead of `ApiConstants`.
+#### [NEW] [strategy_service.dart](file:///d:/FlutterApps/hero_or_zero/lib/services/strategy_service.dart)
+- **Singleton Pattern**: Implement as a singleton to maintain state globally.
+- **Global Strategy Loop**: 
+    - Move the periodic timer (clock) from `StrategyPage` to this service.
+    - Continuously check for the strategy trigger time (from Settings).
+- **Execution Logic**:
+    - Handle spot capture, strike resolution, and strike selection persistence.
+    - Manage WebSocket subscriptions for resolved strikes so they update even when the UI is closed.
+- **State Management**: Use `ValueNotifier` or similar to expose strikes and capture status to the UI.
 
 #### [MODIFY] [main.dart](file:///d:/FlutterApps/hero_or_zero/lib/main.dart)
-- Register `/developer-settings` route.
+- **Service Initialization**: Initialize `StrategyService` and `PnLService` within the `main()` function to ensure they start immediately on app launch.
 
-### 13. Positions Page and Global P&L
+#### [MODIFY] [strategy_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/strategy_page.dart)
+- **UI-Only Refactor**:
+    - Remove the internal timer, `_checkStrategyCondition`, and `_captureSpotPrice` logic.
+    - Subscribe to `StrategyService` updates to display the current status and resolved strikes.
+    - Ensure manual "Test Capture" and "Delete Strike" actions call the service methods.
+- **Improved Feedback**:
+    - Show `errorMessage` even after `capturedSpotPrice` is set (to catch resolution errors).
+    - Show `statusMessage` (e.g., "Resolving contracts...") clearly.
+    - Show a `CircularProgressIndicator` while `isResolving` is true.
+- **Premium UI Redesign (NEW)**:
+    - Redesign `Strategy Status` card with a modern gradient background.
+    - Add subtle micro-icons for each data point (Time, Index, State).
+    - Use a "Glass" effect with subtle opacity and borders.
+    - Group logical information (e.g., Time and State) for better hierarchy.
 
-#### [MODIFY] [api_service.dart](file:///d:/FlutterApps/hero_or_zero/lib/services/api_service.dart)
-- Update `getPositionBook` to include `actid` in `jData`.
-
-#### [NEW] [pnl_service.dart](file:///d:/FlutterApps/hero_or_zero/lib/services/pnl_service.dart)
-- Singleton service to manage live P&L.
-- Fetches initial positions.
-- Subscribes to tokens via `WebSocketService`.
-- Calculates realized and unrealized P&L: `urmtom = netqty * (ws_lp - netavgprc) * prcftr`.
-- Provides a `ValueNotifier` or `Stream` for global P&L updates.
-
-#### [MODIFY] [main_screen.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/main_screen.dart)
-- Add a persistent header/top bar to display Total P&L across all views.
-- Listen to `PnLService` for updates.
-
-#### [MODIFY] [order_book_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/order_book_page.dart)
-- Fetch and display session order history.
-- Handle "no data" responses gracefully.
-
-### 15. Trade Book Page
-
-#### [MODIFY] [api_service.dart](file:///d:/FlutterApps/hero_or_zero/lib/services/api_service.dart)
-- Update `getTradeBook` to include `actid` in `jData`.
-
-#### [MODIFY] [trade_book_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/trade_book_page.dart)
-- Convert to `StatefulWidget`.
-- Fetch data on initialization.
-- Display a list of executed trades with:
-    - Symbol and Transaction Type (B/S)
-    - Fill Quantity and Fill Price
-    - Fill Time
-    - Product and Exchange info.
-- Handle "no data" response by showing an empty state.
+### Robust SENSEX Resolution
+- **SENSEX Strike Step**: Use a **100-point step** for SENSEX (instead of 50).
+- **Search Robustness**:
+    - Try multiple search patterns (e.g., `targetIndex + strike + " CE"`, `targetIndex + strike + "CE"`, etc.).
+    - For BSE (SENSEX), the symbols can be variants like `SENSEX85500CE` or `SENSEX 85500 CE`.
+- **Diagnostic Logging**: Use `debugPrint` for every step of the resolution process to aid troubleshooting.
 
 ## Verification Plan
 
 ### Manual Verification
-- **Header P&L**: Verify P&L is visible on all dashboard tabs.
-- **Positions List**: Verify all open positions are listed with correct quantity and avg price.
-- **Live Updates**: Cross-verify P&L changes with a real trading terminal if possible or simulate price movements.
-- **WebSocket Subscription**: Ensure all tokens from the position book are subscribed on entry and unsubscribed when appropriate.
-- **Login Flow**: Verify `quickAuth` still works and saves the `usertoken`.
-- **Market Data**: Verify `searchScrip` and `getQuote` return correct data.
-- **Order Placement**: (Cautious) Test with a small quantity on a low-value stock if possible, or verify the request format against the documentation.
-- **Data Retrieval**: Verify `getPositionBook` and `getTradeBook` return valid JSON structures as per docs.
-- **WebSocket**: Verify connection can be established and ticks are received.
+- **Global Trigger**:
+    - Set the strategy time to 1 minute in the future.
+    - Switch to the "Dashboard" or "Positions" tab.
+    - Wait until the time passes, then switch to "Strategy".
+    - Verify that the strikes are already resolved and prices are updating.
+- **Minimized App**:
+    - (For Android) Set the time, minimize the app, wait 1 minute.
+    - Re-open the app and verify the strategy triggered while it was minimized.
+- **Trailing SL**:
+    - Open a position and verify TSL updates in `PnLService` logs even when on the Dashboard.

@@ -3,6 +3,8 @@ import 'screens/login_page.dart';
 import 'screens/main_screen.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
+import 'services/strategy_service.dart';
+import 'services/pnl_service.dart';
 import 'screens/settings_page.dart';
 import 'screens/developer_settings_page.dart';
 
@@ -11,8 +13,11 @@ void main() async {
   
   final apiService = ApiService();
   final storageService = StorageService();
+  final strategyService = StrategyService();
+  final pnlService = PnLService();
   
   await apiService.initToken();
+  await strategyService.init(); // Load strategy state
   final String? uid = await storageService.getUid();
   final String? token = apiService.userToken;
 

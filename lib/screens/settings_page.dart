@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
+import '../services/strategy_service.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -10,10 +11,12 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   final StorageService _storageService = StorageService();
+  final StrategyService _strategyService = StrategyService();
   final List<String> _days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   
   String _niftyDay = 'Tuesday';
   String _sensexDay = 'Thursday';
+  String _strategyTime = '13:15';
   final TextEditingController _niftyLotController = TextEditingController();
   final TextEditingController _sensexLotController = TextEditingController();
   bool _showTestButton = true;
@@ -33,6 +36,7 @@ class _SettingsPageState extends State<SettingsPage> {
       _niftyLotController.text = settings['niftyLotSize'].toString();
       _sensexLotController.text = settings['sensexLotSize'].toString();
       _showTestButton = settings['showTestButton'];
+      _strategyTime = settings['strategyTime'];
       _isLoading = false;
     });
   }
@@ -44,7 +48,12 @@ class _SettingsPageState extends State<SettingsPage> {
       niftyLotSize: int.tryParse(_niftyLotController.text) ?? 25,
       sensexLotSize: int.tryParse(_sensexLotController.text) ?? 10,
       showTestButton: _showTestButton,
+      strategyTime: _strategyTime,
     );
+    
+    // Notify StrategyService to reload new settings
+    await _strategyService.refreshSettings();
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Settings saved successfully')),
@@ -78,6 +87,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   _buildTextFieldRow('Lot Size', _sensexLotController),
                   const SizedBox(height: 32),
                   _buildSectionHeader('General Settings'),
+                  _buildTimePickerRow('Strategy Trigger Time', _strategyTime),
                   _buildSwitchRow('Show Test Capture Button', _showTestButton, (val) => setState(() => _showTestButton = val)),
                   const SizedBox(height: 48),
                   SizedBox(
@@ -154,6 +164,60 @@ class _SettingsPageState extends State<SettingsPage> {
                 fillColor: Colors.white.withOpacity(0.05),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
                 contentPadding: const EdgeInsets.symmetric(vertical: 8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTimePickerRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
+          InkWell(
+            onTap: () async {
+              final timeParts = value.split(':');
+              final initialTime = TimeOfDay(
+                hour: int.parse(timeParts[0]),
+                minute: int.parse(timeParts[1]),
+              );
+              final pickedTime = await showTimePicker(
+                context: context,
+                initialTime: initialTime,
+                builder: (context, child) {
+                  return Theme(
+                    data: Theme.of(context).copyWith(
+                      colorScheme: const ColorScheme.dark(
+                        primary: Colors.blueAccent,
+                        onPrimary: Colors.white,
+                        surface: Color(0xFF1E293B),
+                        onSurface: Colors.white,
+                      ),
+                    ),
+                    child: child!,
+                  );
+                },
+              );
+              if (pickedTime != null) {
+                final formattedTime = '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}';
+                setState(() => _strategyTime = formattedTime);
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: Text(
+                value,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
               ),
             ),
           ),

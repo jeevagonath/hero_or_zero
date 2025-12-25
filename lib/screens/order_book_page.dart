@@ -176,7 +176,7 @@ class _OrderBookPageState extends State<OrderBookPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildDataPoint('Qty', '${order['fillshares']}/${order['qty']}'),
+              _buildDataPoint('Qty', '${order['fillshares'] ?? '0'}/${order['qty']}'),
               _buildDataPoint('Price', order['prc'] ?? '0'),
               _buildDataPoint('Avg. Price', order['avgprc'] ?? '0'),
             ],
