@@ -78,12 +78,10 @@ class ApiService {
   Future<Map<String, dynamic>> searchScrip({
     required String userId,
     required String searchText,
-    required String exchange,
   }) async {
     final Map<String, dynamic> jData = {
       'uid': userId,
-      'stext': searchText,
-      'exch': exchange,
+      'stext': searchText.replaceAll(' ', '%20'),
     };
 
     print('API Request: ${ApiConstants.baseUrl}${ApiConstants.searchScrip}');

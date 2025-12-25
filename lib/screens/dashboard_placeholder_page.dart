@@ -20,6 +20,12 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
   bool _isLoading = true;
   String? _errorMessage;
 
+  final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _searchResults = [];
+  bool _isSearching = false;
+  Timer? _debounce;
+  final List<Map<String, dynamic>> _selectedScrips = [];
+
   Map<String, dynamic> _niftyData = {'lp': '0.00', 'pc': '0.00', 'c': '0.00', 'o': '0.00'};
   Map<String, dynamic> _sensexData = {'lp': '0.00', 'pc': '0.00', 'c': '0.00', 'o': '0.00'};
 
@@ -40,7 +46,7 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
         await _apiService.initToken();
       }
       
-      final String uid = widget.userData['actid'] ?? '';
+      final String uid = widget.userData['actid'] ?? _apiService.userId ?? '';
       final String token = _apiService.userToken ?? '';
 
       if (token.isEmpty || uid.isEmpty) {
@@ -102,6 +108,16 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
                 'c': data['c'] ?? _sensexData['c'],
               };
               _updateCalculatedChange('BSE', '1');
+            } else {
+              // Handle selected scrips
+              final index = _selectedScrips.indexWhere(
+                (s) => s['exch'] == exchange && s['token'] == symToken
+              );
+              if (index != -1) {
+                _selectedScrips[index]['lp'] = data['lp'] ?? _selectedScrips[index]['lp'];
+                _selectedScrips[index]['o'] = data['o'] ?? _selectedScrips[index]['o'];
+                _updateScripCalculation(index);
+              }
             }
           });
         }
@@ -136,10 +152,104 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
     }
   }
 
+  void _updateScripCalculation(int index) {
+    var data = _selectedScrips[index];
+    double lp = double.tryParse(data['lp']?.replaceAll(',', '') ?? '0') ?? 0;
+    double open = double.tryParse(data['o']?.replaceAll(',', '') ?? '0') ?? 0;
+    
+    if (open > 0) {
+      double absChange = lp - open;
+      double pc = (absChange / open) * 100;
+      data['c_calc'] = absChange.toStringAsFixed(2);
+      data['pc_calc'] = pc.toStringAsFixed(2);
+    } else {
+      data['c_calc'] = '0.00';
+      data['pc_calc'] = '0.00';
+    }
+  }
+
+  Future<void> _onSearchChanged(String query) async {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _performSearch(query);
+    });
+  }
+
+  Future<void> _performSearch(String query) async {
+    if (query.isEmpty) {
+      setState(() {
+        _searchResults = [];
+        _isSearching = false;
+      });
+      return;
+    }
+
+    setState(() => _isSearching = true);
+
+    try {
+      final String uid = widget.userData['actid'] ?? _apiService.userId ?? '';
+      final response = await _apiService.searchScrip(
+        userId: uid,
+        searchText: query,
+      );
+
+      if (response['stat'] == 'Ok' && response['values'] != null) {
+        setState(() {
+          _searchResults = response['values'];
+          _isSearching = false;
+        });
+      } else {
+        setState(() {
+          _searchResults = [];
+          _isSearching = false;
+        });
+      }
+    } catch (e) {
+      setState(() => _isSearching = false);
+    }
+  }
+
+  void _addScrip(dynamic scrip) async {
+    final String exch = scrip['exch'];
+    final String token = scrip['token'];
+    final String tsym = scrip['tsym'];
+
+    // Check if already added
+    if (_selectedScrips.any((s) => s['exch'] == exch && s['token'] == token)) {
+      _searchController.clear();
+      setState(() => _searchResults = []);
+      return;
+    }
+
+    // Fetch initial quote for Open price
+    final String uid = widget.userData['actid'] ?? _apiService.userId ?? '';
+    final quote = await _apiService.getQuote(userId: uid, exchange: exch, token: token);
+
+    setState(() {
+      final newScrip = {
+        'exch': exch,
+        'token': token,
+        'tsym': tsym,
+        'lp': quote['lp'] ?? '0.00',
+        'o': quote['o'] ?? '0.00',
+        'c_calc': '0.00',
+        'pc_calc': '0.00',
+      };
+      _selectedScrips.add(newScrip);
+      _updateScripCalculation(_selectedScrips.length - 1);
+      
+      _wsService.subscribeTouchline(exch, token);
+      
+      _searchController.clear();
+      _searchResults = [];
+    });
+  }
+
   @override
   void dispose() {
     _wsSubscription?.cancel();
-    // We don't disconnect WebSocket here as other pages might need it
+    _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -147,81 +257,244 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Market Overview',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                if (!_isLoading)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.greenAccent.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.circle, size: 8, color: Colors.greenAccent),
-                        SizedBox(width: 4),
-                        Text(
-                          'LIVE',
-                          style: TextStyle(
-                            color: Colors.greenAccent,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                _buildHeader(),
+                const SizedBox(height: 24),
+                if (_isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else if (_errorMessage != null)
+                  _buildErrorState()
+                else ...[
+                  _buildIndexCards(),
+                  const SizedBox(height: 24),
+                  _buildSearchBox(),
+                  const SizedBox(height: 24),
+                  _buildWatchlist(),
+                  const SizedBox(height: 32),
+                  _buildQuickStats(),
+                ],
               ],
             ),
-            const SizedBox(height: 24),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else if (_errorMessage != null)
-              Center(
-                child: Column(
-                  children: [
-                    Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)),
-                    const SizedBox(height: 16),
-                    TextButton(onPressed: _initDashboard, child: const Text('Retry'))
-                  ],
-                ),
+          ),
+          if (_searchResults.isNotEmpty) _buildSearchResultsOverlay(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Text(
+          'Market Overview',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        if (!_isLoading) _buildLiveIndicator(),
+      ],
+    );
+  }
+
+  Widget _buildLiveIndicator() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.greenAccent.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: const Row(
+        children: [
+          Icon(Icons.circle, size: 8, color: Colors.greenAccent),
+          SizedBox(width: 4),
+          Text(
+            'LIVE',
+            style: TextStyle(
+              color: Colors.greenAccent,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        children: [
+          Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)),
+          const SizedBox(height: 16),
+          TextButton(onPressed: _initDashboard, child: const Text('Retry'))
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIndexCards() {
+    return Row(
+      children: [
+        Expanded(child: _buildIndexCard(title: 'NIFTY 50', data: _niftyData)),
+        const SizedBox(width: 16),
+        Expanded(child: _buildIndexCard(title: 'SENSEX', data: _sensexData)),
+      ],
+    );
+  }
+
+  Widget _buildSearchBox() {
+    return TextField(
+      controller: _searchController,
+      onChanged: _onSearchChanged,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: 'Search Scrip (e.g. RELIANCE)',
+        hintStyle: const TextStyle(color: Colors.blueGrey),
+        prefixIcon: const Icon(Icons.search, color: Colors.blueAccent),
+        suffixIcon: _isSearching
+            ? const Padding(
+                padding: EdgeInsets.all(12.0),
+                child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
               )
-            else
+            : null,
+        filled: true,
+        fillColor: Colors.white.withOpacity(0.05),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ),
+    );
+  }
+
+  Widget _buildSearchResultsOverlay() {
+    return Positioned(
+      top: 210, // Approximate position below search box
+      left: 24,
+      right: 24,
+      child: Material(
+        elevation: 8,
+        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFF1E293B),
+        child: Container(
+          constraints: const BoxConstraints(maxHeight: 300),
+          child: ListView.separated(
+            padding: EdgeInsets.zero,
+            shrinkWrap: true,
+            itemCount: _searchResults.length,
+            separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
+            itemBuilder: (context, index) {
+              final scrip = _searchResults[index];
+              return ListTile(
+                title: Text(scrip['tsym'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 14)),
+                subtitle: Text(scrip['exch'] ?? '', style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
+                onTap: () => _addScrip(scrip),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWatchlist() {
+    if (_selectedScrips.isEmpty) return const SizedBox.shrink();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Watchlist',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        const SizedBox(height: 16),
+        ListView.separated(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: _selectedScrips.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final scrip = _selectedScrips[index];
+            return _buildScripCard(scrip, index);
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildScripCard(Map<String, dynamic> scrip, int index) {
+    final String change = scrip['pc_calc'] ?? '0.00';
+    final bool isPositive = !change.startsWith('-');
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                scrip['tsym'],
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                scrip['exch'],
+                style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+              ),
+            ],
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                scrip['lp'],
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              const SizedBox(height: 4),
               Row(
                 children: [
-                  Expanded(
-                    child: _buildIndexCard(
-                      title: 'NIFTY 50',
-                      data: _niftyData,
-                    ),
+                  Icon(
+                    isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                    size: 12,
+                    color: isPositive ? Colors.greenAccent : Colors.redAccent,
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildIndexCard(
-                      title: 'SENSEX',
-                      data: _sensexData,
+                  const SizedBox(width: 4),
+                  Text(
+                    '${scrip['c_calc']} ($change%)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isPositive ? Colors.greenAccent : Colors.redAccent,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
-            const SizedBox(height: 32),
-            _buildQuickStats(),
-          ],
-        ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18, color: Colors.blueGrey),
+            onPressed: () {
+              setState(() {
+                _wsService.unsubscribeTouchline(scrip['exch'], scrip['token']);
+                _selectedScrips.removeAt(index);
+              });
+            },
+          ),
+        ],
       ),
     );
   }
@@ -326,23 +599,26 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
         children: [
           Icon(icon, size: 20, color: Colors.blueAccent),
           const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(fontSize: 10, color: Colors.blueGrey),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(fontSize: 10, color: Colors.blueGrey),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
