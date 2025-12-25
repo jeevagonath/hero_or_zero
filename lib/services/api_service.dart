@@ -316,6 +316,58 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> addMultiScripsToMW({
+    required String userId,
+    required String scrips,
+    String wlname = 'DEFAULT',
+  }) async {
+    final Map<String, dynamic> jData = {
+      'uid': userId,
+      'wlname': wlname,
+      'scrips': scrips,
+    };
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.addMultiScripsToMW}'),
+        body: 'jData=${jsonEncode(jData)}&jKey=${_userToken ?? ''}',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'stat': 'Not_Ok', 'emsg': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> deleteMultiMWScrips({
+    required String userId,
+    required String scrips,
+    String wlname = 'DEFAULT',
+  }) async {
+    final Map<String, dynamic> jData = {
+      'uid': userId,
+      'wlname': wlname,
+      'scrips': scrips,
+    };
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.deleteMultiMWScrips}'),
+        body: 'jData=${jsonEncode(jData)}&jKey=${_userToken ?? ''}',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'stat': 'Not_Ok', 'emsg': e.toString()};
+    }
+  }
+
   void clearSession() {
     _userToken = null;
     _userId = null;

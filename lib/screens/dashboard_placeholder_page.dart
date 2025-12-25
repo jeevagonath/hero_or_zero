@@ -221,8 +221,22 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
       return;
     }
 
-    // Fetch initial quote for Open price
     final String uid = widget.userData['actid'] ?? _apiService.userId ?? '';
+    
+    // 1. Sync with Shoonya Backend
+    try {
+      final response = await _apiService.addMultiScripsToMW(
+        userId: uid,
+        scrips: '$exch|$token',
+      );
+      if (response['stat'] != 'Ok') {
+        print('Backend sync failed for add: ${response['emsg']}');
+      }
+    } catch (e) {
+      print('Error syncing add with backend: $e');
+    }
+
+    // 2. Fetch initial quote for Open price
     final quote = await _apiService.getQuote(userId: uid, exchange: exch, token: token);
 
     setState(() {
@@ -274,15 +288,14 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
                   _buildIndexCards(),
                   const SizedBox(height: 24),
                   _buildSearchBox(),
+                  if (_searchResults.isNotEmpty) _buildSearchResultsList(),
                   const SizedBox(height: 24),
                   _buildWatchlist(),
                   const SizedBox(height: 32),
-                  _buildQuickStats(),
                 ],
               ],
             ),
           ),
-          if (_searchResults.isNotEmpty) _buildSearchResultsOverlay(),
         ],
       ),
     );
@@ -374,32 +387,29 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
     );
   }
 
-  Widget _buildSearchResultsOverlay() {
-    return Positioned(
-      top: 210, // Approximate position below search box
-      left: 24,
-      right: 24,
-      child: Material(
-        elevation: 8,
+  Widget _buildSearchResultsList() {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      constraints: const BoxConstraints(maxHeight: 250),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(12),
-        color: const Color(0xFF1E293B),
-        child: Container(
-          constraints: const BoxConstraints(maxHeight: 300),
-          child: ListView.separated(
-            padding: EdgeInsets.zero,
-            shrinkWrap: true,
-            itemCount: _searchResults.length,
-            separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
-            itemBuilder: (context, index) {
-              final scrip = _searchResults[index];
-              return ListTile(
-                title: Text(scrip['tsym'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 14)),
-                subtitle: Text(scrip['exch'] ?? '', style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
-                onTap: () => _addScrip(scrip),
-              );
-            },
-          ),
-        ),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: ListView.separated(
+        padding: EdgeInsets.zero,
+        shrinkWrap: true,
+        itemCount: _searchResults.length,
+        separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
+        itemBuilder: (context, index) {
+          final scrip = _searchResults[index];
+          return ListTile(
+            title: Text(scrip['tsym'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 14)),
+            subtitle: Text(scrip['exch'] ?? '', style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
+            trailing: const Icon(Icons.add, color: Colors.blueAccent, size: 20),
+            onTap: () => _addScrip(scrip),
+          );
+        },
       ),
     );
   }
@@ -441,53 +451,74 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
         border: Border.all(color: Colors.white10),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                scrip['tsym'],
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                scrip['exch'],
-                style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
-              ),
-            ],
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  scrip['tsym'],
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  scrip['exch'],
+                  style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+                ),
+              ],
+            ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                scrip['lp'],
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  Icon(
-                    isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-                    size: 12,
-                    color: isPositive ? Colors.greenAccent : Colors.redAccent,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${scrip['c_calc']} ($change%)',
-                    style: TextStyle(
-                      fontSize: 12,
+          Expanded(
+            flex: 2,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  scrip['lp'],
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Icon(
+                      isPositive ? Icons.arrow_upward : Icons.arrow_downward,
+                      size: 12,
                       color: isPositive ? Colors.greenAccent : Colors.redAccent,
-                      fontWeight: FontWeight.w500,
                     ),
-                  ),
-                ],
-              ),
-            ],
+                    const SizedBox(width: 4),
+                    Text(
+                      '${scrip['c_calc']} ($change%)',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isPositive ? Colors.greenAccent : Colors.redAccent,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.close, size: 18, color: Colors.blueGrey),
-            onPressed: () {
+            icon: const Icon(Icons.delete_outline, size: 22, color: Colors.redAccent),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () async {
+              final String uid = widget.userData['actid'] ?? _apiService.userId ?? '';
+              // 1. Sync with Shoonya Backend
+              try {
+                await _apiService.deleteMultiMWScrips(
+                  userId: uid,
+                  scrips: '${scrip['exch']}|${scrip['token']}',
+                );
+              } catch (e) {
+                print('Error syncing delete with backend: $e');
+              }
+
+              // 2. Unsubscribe and Remove locally
               setState(() {
                 _wsService.unsubscribeTouchline(scrip['exch'], scrip['token']);
                 _selectedScrips.removeAt(index);
