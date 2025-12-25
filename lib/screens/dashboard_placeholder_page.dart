@@ -32,10 +32,38 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
   Map<String, dynamic> _niftyData = {'lp': '0.00', 'pc': '0.00', 'c': '0.00', 'o': '0.00'};
   Map<String, dynamic> _sensexData = {'lp': '0.00', 'pc': '0.00', 'c': '0.00', 'o': '0.00'};
 
+  // Status: CHECKING, LIVE, CLOSED
+  String _marketStatus = 'CHECKING';
+  DateTime? _lastWsUpdate;
+  Timer? _statusTimer;
+
   @override
   void initState() {
     super.initState();
     _initDashboard();
+    _startStatusMonitor();
+  }
+
+  void _startStatusMonitor() {
+    _statusTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_lastWsUpdate != null) {
+        final diff = DateTime.now().difference(_lastWsUpdate!);
+        final isLive = diff.inSeconds < 3;
+        final newStatus = isLive ? 'LIVE' : 'CLOSED';
+        
+        if (_marketStatus != newStatus) {
+           setState(() => _marketStatus = newStatus);
+        }
+      } else {
+        // If still 'CHECKING' after 5 seconds of no data, assume CLOSED
+        if (_marketStatus == 'CHECKING' && timer.tick > 5) {
+           setState(() => _marketStatus = 'CLOSED');
+        } else if (_marketStatus == 'LIVE') {
+           // Transition from LIVE to CLOSED if data stops
+           setState(() => _marketStatus = 'CLOSED');
+        }
+      }
+    });
   }
 
   Future<void> _initDashboard() async {
@@ -141,9 +169,13 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
 
       // Listen for updates
       _wsSubscription = _wsService.messageStream.listen((data) {
+        // Track ANY data packet to determine liveness
+        _lastWsUpdate = DateTime.now();
+
         if (data['t'] == 'tk' || data['t'] == 'tf') {
           final String exchange = data['e'] ?? '';
           final String symToken = data['tk'] ?? '';
+           // ... existing processing ...
 
           setState(() {
             if (exchange == 'NSE' && symToken == '26000') {
@@ -316,6 +348,7 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
     _wsSubscription?.cancel();
     _searchController.dispose();
     _debounce?.cancel();
+    _statusTimer?.cancel();
     super.dispose();
   }
 
@@ -376,22 +409,42 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
   }
 
   Widget _buildLiveIndicator() {
+    Color color;
+    String text;
+
+    switch (_marketStatus) {
+      case 'LIVE':
+        color = const Color(0xFF00D97E); // Green
+        text = 'LIVE';
+        break;
+      case 'CHECKING':
+        color = const Color(0xFFFFC107); // Amber/Yellow
+        text = 'CHECKING';
+        break;
+      case 'CLOSED':
+      default:
+        color = const Color(0xFFFF5F5F); // Red
+        text = 'CLOSED';
+        break;
+    }
+    
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF00D97E).withOpacity(0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF00D97E).withOpacity(0.2)),
+        border: Border.all(color: color.withOpacity(0.2)),
       ),
-      child: const Row(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.circle, size: 8, color: Color(0xFF00D97E)),
-          SizedBox(width: 6),
+          Icon(Icons.circle, size: 8, color: color),
+          const SizedBox(width: 6),
           Text(
-            'LIVE',
+            text,
             style: TextStyle(
-              color: Color(0xFF00D97E),
-              fontSize: 11,
+              color: color,
+              fontSize: 10, // Slightly smaller to fit "CHECKING"
               fontWeight: FontWeight.w900,
               letterSpacing: 0.5,
             ),

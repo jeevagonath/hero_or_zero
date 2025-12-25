@@ -98,3 +98,4 @@ I have completely overhauled the application's design to a premium "Dark Glassmo
     - **Lot Size Logic**: Implemented definitive Lot Size retrieval using the `GetOptionChain` API rather than relying on index constants or spot quotes.
     - **Session Security**: Implemented daily session expiry. The app now tracks the login date and automatically clears the session if opened on a subsequent day, ensuring fresh tokens.
     - **Login UI**: Refined the login page header for a more compact, single-line "HERO ZERO" logo layout.
+    - **Market Status**: Added a real-time status indicator in the Dashboard that transitions from "Checking" to "Live" (Green) or "Closed" (Red) based on active WebSocket data flow.
