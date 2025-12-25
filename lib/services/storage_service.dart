@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class StorageService {
@@ -30,6 +31,24 @@ class StorageService {
   Future<String?> getUid() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keyUid);
+  }
+
+  Future<void> savePeakProfits(Map<String, double> profits) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('peak_profits', jsonEncode(profits));
+  }
+
+  Future<Map<String, double>> getPeakProfits() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? data = prefs.getString('peak_profits');
+    if (data == null) return {};
+    final Map<String, dynamic> decoded = jsonDecode(data);
+    return decoded.map((key, value) => MapEntry(key, (value as num).toDouble()));
+  }
+
+  Future<void> clearPeakProfits() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('peak_profits');
   }
 
   Future<void> clearAll() async {

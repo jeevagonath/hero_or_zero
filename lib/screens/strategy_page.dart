@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/websocket_service.dart';
+import '../services/pnl_service.dart';
 import 'package:intl/intl.dart';
 
 class StrategyPage extends StatefulWidget {
@@ -249,6 +250,8 @@ class _StrategyPageState extends State<StrategyPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildInfoSection(),
+          const SizedBox(height: 24),
+          _buildExitPlanSection(),
           const SizedBox(height: 32),
           if (_capturedSpotPrice != null) ...[
             if (_isResolving)
@@ -385,6 +388,109 @@ class _StrategyPageState extends State<StrategyPage> {
             ),
           );
         }),
+      ],
+    );
+  }
+
+  Widget _buildExitPlanSection() {
+    final PnLService pnlService = PnLService();
+
+    return ValueListenableBuilder<Map<String, dynamic>>(
+      valueListenable: pnlService.exitStatus,
+      builder: (context, statusMap, child) {
+        final activeTokens = statusMap.keys.toList();
+        if (activeTokens.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Active Strategy Exit Plan',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
+            const SizedBox(height: 12),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Responsive grid: 1 column for mobile, 2 for tablet/larger
+                int crossAxisCount = constraints.maxWidth > 600 ? 2 : 1;
+                double childAspectRatio = constraints.maxWidth > 600 ? 2.5 : 3.0;
+
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: childAspectRatio,
+                  ),
+                  itemCount: activeTokens.length,
+                  itemBuilder: (context, index) {
+                    final token = activeTokens[index];
+                    final status = statusMap[token];
+                    return _buildExitCard(status);
+                  },
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildExitCard(Map<String, dynamic> status) {
+    final tsl = status['tslPerLot'] ?? -999999.0;
+    final peak = status['peakProfitPerLot'] ?? 0.0;
+    final tsym = status['tsym'] ?? 'N/A';
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blueAccent.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blueAccent.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            tsym,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildExitStat('Peak Profit', '₹${peak.toStringAsFixed(2)}'),
+              _buildExitStat(
+                'Trailing SL', 
+                tsl == -999999.0 ? 'Pending' : '₹${tsl.toStringAsFixed(2)}',
+                color: tsl == -999999.0 ? Colors.blueGrey : Colors.orangeAccent,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildExitStat(String label, String value, {Color? color}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 10)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            color: color ?? Colors.greenAccent,
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
       ],
     );
   }

@@ -254,6 +254,28 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> squareOffPosition({
+    required String userId,
+    required Map<String, dynamic> position,
+  }) async {
+    final double netqty = double.tryParse(position['netqty']?.toString() ?? '0') ?? 0;
+    if (netqty == 0) return {'stat': 'Not_Ok', 'emsg': 'Net quantity is zero'};
+
+    final String transactionType = netqty > 0 ? 'S' : 'B';
+    final String absQty = netqty.abs().toInt().toString();
+
+    return placeOrder(
+      userId: userId,
+      exchange: position['exch'],
+      tradingSymbol: position['tsym'],
+      quantity: absQty,
+      price: '0',
+      transactionType: transactionType,
+      productType: position['prd'],
+      orderType: 'MKT',
+    );
+  }
+
   Future<Map<String, dynamic>> getHoldings({required String userId}) async {
     final Map<String, dynamic> jData = {'uid': userId, 'actid': userId};
     try {

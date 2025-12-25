@@ -62,33 +62,61 @@ class _PositionsPageState extends State<PositionsPage> {
       child: ValueListenableBuilder<double>(
         valueListenable: _pnlService.totalPnL,
         builder: (context, totalPnL, child) {
-          final color = totalPnL >= 0 ? Colors.greenAccent : Colors.redAccent;
+          final pnlColor = totalPnL >= 0 ? Colors.greenAccent : Colors.redAccent;
           return Column(
             children: [
-              const Text(
-                'Total Unrealized M2M',
-                style: TextStyle(color: Colors.blueGrey, fontSize: 14),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '₹${totalPnL.toStringAsFixed(2)}',
-                style: TextStyle(
-                  color: color,
-                  fontSize: 36,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 16),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   _buildMiniStat('Positions', _pnlService.positions.value.length.toString()),
-                  _buildMiniStat('Realized P&L', '₹${_calculateTotalRealized().toStringAsFixed(2)}'),
+                  _buildMiniStat(
+                    'Total M2M', 
+                    '₹${totalPnL.toStringAsFixed(2)}',
+                    valueColor: pnlColor,
+                  ),
+                  _buildMiniStat('Realized', '₹${_calculateTotalRealized().toStringAsFixed(2)}'),
                 ],
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showConfirmAllDialog(context),
+                  icon: const Icon(Icons.close_fullscreen, size: 18, color: Colors.white),
+                  label: const Text('CLOSE ALL POSITIONS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent.withOpacity(0.8),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                  ),
+                ),
               ),
             ],
           );
         },
+      ),
+    );
+  }
+
+  void _showConfirmAllDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Close All Positions?', style: TextStyle(color: Colors.white)),
+        content: const Text('This will place market orders to exit all open positions.', style: TextStyle(color: Colors.blueGrey)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _pnlService.squareOffAll('Manual Close All');
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('CLOSE ALL', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
@@ -101,12 +129,19 @@ class _PositionsPageState extends State<PositionsPage> {
     return total;
   }
 
-  Widget _buildMiniStat(String label, String value) {
+  Widget _buildMiniStat(String label, String value, {Color? valueColor}) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
+        Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 10)),
         const SizedBox(height: 4),
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        Text(
+          value, 
+          style: TextStyle(
+            color: valueColor ?? Colors.white, 
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+          ),
+        ),
       ],
     );
   }
@@ -186,6 +221,47 @@ class _PositionsPageState extends State<PositionsPage> {
               _buildDataPoint('Avg', avg.toStringAsFixed(2)),
               _buildDataPoint('LTP', lp.toStringAsFixed(2), color: Colors.blueAccent),
             ],
+          ),
+          if (netqty != 0) ...[
+            const Padding(
+              padding: EdgeInsets.only(top: 16),
+              child: Divider(color: Colors.white10, height: 1),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => _showConfirmSingleDialog(context, pos),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.redAccent, width: 1),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                ),
+                child: const Text('CLOSE POSITION', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showConfirmSingleDialog(BuildContext context, Map<String, dynamic> position) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: Text('Close ${position['tsym']}?', style: const TextStyle(color: Colors.white)),
+        content: const Text('This will place a market order to exit this position.', style: TextStyle(color: Colors.blueGrey)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _pnlService.squareOffSingle(position);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('CLOSE', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
