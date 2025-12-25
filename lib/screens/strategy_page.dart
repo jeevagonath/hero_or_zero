@@ -359,19 +359,26 @@ class _StrategyPageState extends State<StrategyPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    strike['tsym']?.toString() ?? strike['strike'].toString(),
+                    '${strike['strike']} ${strike['type']}',
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 18,
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
-                    overflow: TextOverflow.visible,
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    isPut ? 'OTM Put Option (PE)' : 'OTM Call Option (CE)',
+                    strike['exd'] ?? 'No Expiry',
                     style: TextStyle(
                       fontSize: 12,
+                      color: Colors.white.withOpacity(0.5),
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isPut ? 'OTM Put Option (PE)' : 'OTM Call Option (CE)',
+                    style: TextStyle(
+                      fontSize: 11,
                       color: isPut ? Colors.redAccent.withOpacity(0.8) : Colors.greenAccent.withOpacity(0.8),
                     ),
                   ),

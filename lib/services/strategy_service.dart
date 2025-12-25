@@ -307,6 +307,7 @@ class StrategyService {
           'type': type == 'P' ? 'PE' : 'CE',
           'token': bestMatch['token'],
           'tsym': bestMatch['tsym'],
+          'exd': bestMatch['exd'],
           'exch': bestMatch['exch'],
           'selected': true,
           'lp': initialLp,

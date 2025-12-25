@@ -107,3 +107,4 @@
     - [x] Redesign Exit Plan UI (Always showing, Portfolio view) <!-- id: 168 -->
     - [x] Implement Robust Background Retry for Network Failures <!-- id: 169 -->
     - [x] Refine Strike Selection to Strictly OTM (nearest above/below) <!-- id: 170 -->
+    - [x] Improve Strike Card UI (Show Strike + Expiry, hide tsym) <!-- id: 171 -->
