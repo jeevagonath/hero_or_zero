@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/glass_widgets.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class TradeBookPage extends StatefulWidget {
   const TradeBookPage({super.key});
@@ -52,36 +54,49 @@ class _TradeBookPageState extends State<TradeBookPage> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFF0D0F12),
       body: RefreshIndicator(
         onRefresh: _fetchTrades,
+        backgroundColor: const Color(0xFF161B22),
+        color: const Color(0xFF4D96FF),
         child: _isLoading 
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: SpinKitPulse(color: Color(0xFF4D96FF)))
           : _errorMessage != null
             ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)),
+                    Icon(Icons.error_outline_rounded, size: 64, color: const Color(0xFFFF5F5F).withOpacity(0.5)),
                     const SizedBox(height: 16),
-                    ElevatedButton(
+                    Text(_errorMessage!, style: const TextStyle(color: Color(0xFFFF5F5F), fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 24),
+                    NeonButton(
                       onPressed: _fetchTrades,
-                      child: const Text('Retry'),
+                      label: 'Retry Fetch',
+                      icon: Icons.refresh_rounded,
                     ),
                   ],
                 ),
               )
             : _trades.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No trades in this session',
-                    style: TextStyle(color: Colors.blueGrey, fontSize: 16),
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.receipt_long_rounded, size: 64, color: Colors.blueGrey.withOpacity(0.2)),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No Trades Executed Today',
+                        style: TextStyle(color: Colors.blueGrey, fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   itemCount: _trades.length,
                   itemBuilder: (context, index) {
                     return _buildTradeCard(_trades[index]);
@@ -93,82 +108,93 @@ class _TradeBookPageState extends State<TradeBookPage> {
 
   Widget _buildTradeCard(Map<String, dynamic> trade) {
     final isBuy = trade['trantype'] == 'B';
-    final typeColor = isBuy ? Colors.greenAccent : Colors.redAccent;
+    final typeColor = isBuy ? const Color(0xFF00D97E) : const Color(0xFFFF5F5F);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      opacity: 0.05,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    trade['tsym'] ?? 'N/A',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      trade['tsym'] ?? 'N/A',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        letterSpacing: -0.3,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: typeColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: typeColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isBuy ? 'BUY' : 'SELL',
+                            style: TextStyle(color: typeColor, fontSize: 9, fontWeight: FontWeight.w900),
+                          ),
                         ),
-                        child: Text(
-                          isBuy ? 'BUY' : 'SELL',
-                          style: TextStyle(color: typeColor, fontSize: 10, fontWeight: FontWeight.bold),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${trade['exch']} | ${trade['prd']}',
+                          style: const TextStyle(color: Colors.blueGrey, fontSize: 11, fontWeight: FontWeight.w600),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${trade['exch']} | ${trade['prd']}',
-                        style: const TextStyle(color: Colors.blueGrey, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  const Text(
-                    'FILLED',
-                    style: TextStyle(
-                      color: Colors.greenAccent,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00D97E).withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'EXECUTED',
+                      style: TextStyle(
+                        color: Color(0xFF00D97E),
+                        fontWeight: FontWeight.w900,
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
                     trade['fltm'] ?? '',
-                    style: const TextStyle(color: Colors.blueGrey, fontSize: 10),
+                    style: TextStyle(color: Colors.white.withOpacity(0.2), fontSize: 9, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
             ],
           ),
-          const Divider(color: Colors.white10, height: 24),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Divider(color: Colors.white10, height: 1),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildDataPoint('Fill Qty', trade['flqty'] ?? '0'),
-              _buildDataPoint('Fill Price', trade['flprc'] ?? '0'),
-              _buildDataPoint('Order No', trade['norenordno'] ?? 'N/A'),
+              _buildDataPoint('FILLED QTY', trade['flqty'] ?? '0'),
+              _buildDataPoint('FILL PRICE', trade['flprc'] ?? '0'),
+              _buildDataPoint('ORDER ID', trade['norenordno'] ?? 'N/A'),
             ],
           ),
         ],
@@ -180,11 +206,16 @@ class _TradeBookPageState extends State<TradeBookPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 10)),
-        const SizedBox(height: 4),
+        Text(label.toUpperCase(), style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        const SizedBox(height: 6),
         Text(
           value,
-          style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8), 
+            fontSize: 14, 
+            fontWeight: FontWeight.w900,
+            fontFamily: 'monospace',
+          ),
         ),
       ],
     );

@@ -194,11 +194,18 @@ class StrategyService {
       final String token = targetIndex.value == 'NIFTY' ? '26000' : '1';
 
       debugPrint('StrategyService: Fetching quote for $indexSymbol ($exchange|$token)...');
+      
+      // LOG THE REQUEST
+      print('DEBUG: sending getQuote for Index: uid=$uid, exch=$exchange, token=$token');
+
       final response = await _apiService.getQuote(
         userId: uid,
         exchange: exchange,
         token: token,
       );
+      
+      // LOG THE RESPONSE
+      print('DEBUG: getQuote Response: $response');
 
       if (response['stat'] == 'Ok') {
         final String? lp = response['lp']?.toString();
@@ -207,7 +214,11 @@ class StrategyService {
         if (lp != null) {
           debugPrint('StrategyService: Spot Captured SUCCESS: $lp');
           capturedSpotPrice.value = lp;
-          indexLotSize.value = int.tryParse(ls ?? '1');
+          
+          // Use numeric parsing only for initial validation, real LS comes from Option Chain later
+          // We set a default here, but will overwrite it after strike resolution
+          indexLotSize.value = 1; 
+
           statusMessage.value = 'Spot Captured: $lp. Resolving strikes...';
           await _generateAndResolveStrikes(double.parse(lp), uid);
         } else {
@@ -224,6 +235,35 @@ class StrategyService {
     } finally {
       isCapturing.value = false;
     }
+  }
+
+  Future<int> _fetchLotSizeFromOptionChain(String uid, String exchange, String tsym, String spotPrice) async {
+    try {
+      print('DEBUG: Sending GetOptionChain for Lot Size. Exch: $exchange, Tsym: $tsym, Spot: $spotPrice');
+      final result = await _retryWithResult(
+        () => _apiService.getOptionChain(
+          userId: uid, 
+          exchange: exchange, 
+          tradingSymbol: tsym, 
+          strikePrice: spotPrice, 
+          count: '1'
+        ),
+        name: 'GetOptionChain $tsym'
+      );
+      
+      if (result != null && result['stat'] == 'Ok' && result['values'] != null) {
+        final List<dynamic> values = result['values'];
+        if (values.isNotEmpty) {
+           final firstObj = values[0];
+           final int ls = int.tryParse(firstObj['ls']?.toString() ?? '1') ?? 1;
+           print('DEBUG: Found LS in OptionChain: $ls');
+           return ls;
+        }
+      }
+    } catch (e) {
+      debugPrint('StrategyService: Error fetching Lot Size from Option Chain: $e');
+    }
+    return 1; // Default
   }
 
   Future<void> _generateAndResolveStrikes(double spot, String uid) async {
@@ -293,13 +333,16 @@ class StrategyService {
       if (bestMatch != null) {
         statusMessage.value = 'Fetching price for ${bestMatch['tsym']}...';
         String initialLp = '...';
+        String contractLotSize = '1'; // Default to 1
+
         try {
           final quote = await _retryWithResult(() => _apiService.getQuote(userId: uid, exchange: exchange, token: bestMatch!['token'].toString()), name: 'Quote ${bestMatch['tsym']}');
           if (quote != null && quote['stat'] == 'Ok') {
             initialLp = quote['lp']?.toString() ?? '...';
+            contractLotSize = quote['ls']?.toString() ?? '1';
           }
         } catch (e) {
-          debugPrint('StrategyService: Error fetching initial lp for ${bestMatch['tsym']}: $e');
+          debugPrint('StrategyService: Error fetching initial lp/ls for ${bestMatch['tsym']}: $e');
         }
 
         resolvedStrikes.add({
@@ -311,11 +354,23 @@ class StrategyService {
           'exch': bestMatch['exch'],
           'selected': true,
           'lp': initialLp,
+          'ls': contractLotSize, // Store the lot size
         });
         _wsService.subscribeTouchline(exchange, bestMatch['token'].toString());
       } else {
         debugPrint('StrategyService: NO MATCH found for strike $strike $type');
       }
+    }
+
+    // NEW: Fetch authoritative Lot Size using Option Chain if we have at least one resolved strike
+    if (resolvedStrikes.isNotEmpty) {
+      final firstStrike = resolvedStrikes.first;
+      final String refTsym = firstStrike['tsym'];
+      debugPrint('StrategyService: Fetching authoritative Lot Size using $refTsym');
+      
+      final int authoritativeLs = await _fetchLotSizeFromOptionChain(uid, exchange, refTsym, spot.toString());
+      indexLotSize.value = authoritativeLs;
+      debugPrint('StrategyService: Authoritative Index Lot Size set to: $authoritativeLs');
     }
 
     if (resolvedStrikes.isEmpty) {
@@ -429,11 +484,11 @@ class StrategyService {
         return;
     }
 
-    final int? effectiveIndexLotSize = indexLotSize.value;
+    final int effectiveIndexLotSize = indexLotSize.value ?? (targetIndex.value == 'NIFTY' ? 75 : 10);
+    print('DEBUG: effectiveIndexLotSize for Order: $effectiveIndexLotSize');
 
     for (var strike in selectedStrikes) {
-      final int effectiveLs = effectiveIndexLotSize ?? (targetIndex.value == 'NIFTY' ? 75 : 20);
-      final int finalQty = userLots * effectiveLs;
+      final int finalQty = userLots * effectiveIndexLotSize;
       
       try {
         final response = await _apiService.placeOrder(

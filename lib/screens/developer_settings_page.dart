@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/storage_service.dart';
+import '../widgets/glass_widgets.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class DeveloperSettingsPage extends StatefulWidget {
   const DeveloperSettingsPage({super.key});
@@ -49,44 +51,62 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF0D0F12),
       appBar: AppBar(
-        title: const Text('Developer Settings'),
+        title: const Text('DEVELOPER CONFIG', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: SpinKitPulse(color: Color(0xFF4D96FF)))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Configure your Shoonya API credentials here. These settings will persist across logouts.',
-                    style: TextStyle(color: Colors.blueGrey, fontSize: 14),
+                  GlassCard(
+                    padding: const EdgeInsets.all(24),
+                    opacity: 0.05,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: Colors.orangeAccent, size: 20),
+                            const SizedBox(width: 12),
+                            const Expanded(
+                              child: Text(
+                                'CREDENTIAL STORAGE',
+                                style: TextStyle(
+                                  color: Colors.orangeAccent, 
+                                  fontSize: 12, 
+                                  fontWeight: FontWeight.w900, 
+                                  letterSpacing: 1
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Configure your Shoonya API credentials here. These settings will persist across logouts.',
+                          style: TextStyle(color: Colors.blueGrey, fontSize: 14, height: 1.5),
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 32),
-                  _buildTextField('Vendor Code', _vendorController),
-                  const SizedBox(height: 20),
-                  _buildTextField('API Key', _apiKeyController),
-                  const SizedBox(height: 20),
-                  _buildTextField('IMEI', _imeiController),
+                  _buildTextField('VENDOR CODE', _vendorController, icon: Icons.code_rounded),
+                  const SizedBox(height: 24),
+                  _buildTextField('API KEY', _apiKeyController, icon: Icons.vpn_key_rounded),
+                  const SizedBox(height: 24),
+                  _buildTextField('IMEI', _imeiController, icon: Icons.phone_android_rounded),
                   const SizedBox(height: 48),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _saveConfig,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text(
-                        'SAVE CONFIG',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
+                  NeonButton(
+                    onPressed: _saveConfig,
+                    label: 'SAVE CONFIGURATION',
+                    icon: Icons.save_rounded,
                   ),
                 ],
               ),
@@ -94,31 +114,32 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller) {
+  Widget _buildTextField(String label, TextEditingController controller, {required IconData icon}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-        const SizedBox(height: 8),
+        Text(label, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        const SizedBox(height: 12),
         TextField(
           controller: controller,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.white.withOpacity(0.05),
+            fillColor: Colors.white.withOpacity(0.03),
+            prefixIcon: Icon(icon, color: Colors.blueGrey, size: 20),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white10),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.white10),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.blueAccent),
+              borderRadius: BorderRadius.circular(16),
+              borderSide: const BorderSide(color: Color(0xFF4D96FF), width: 2),
             ),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
           ),
         ),
       ],

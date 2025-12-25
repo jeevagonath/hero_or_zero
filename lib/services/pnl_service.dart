@@ -206,18 +206,25 @@ class PnLService {
     await fetchPositions();
   }
 
-  Future<void> squareOffAll([String reason = 'Manual Close All']) async {
+  Future<int> squareOffAll([String reason = 'Manual Close All']) async {
     final String? uid = _apiService.userId ?? await _storageService.getUid();
-    if (uid == null) return;
+    if (uid == null) return 0;
 
+    int ordersPlaced = 0;
     final currentPositions = List<Map<String, dynamic>>.from(positions.value);
+    
     for (var pos in currentPositions) {
       final double netqty = double.tryParse(pos['netqty']?.toString() ?? '0') ?? 0;
       if (netqty != 0) {
-        await _apiService.squareOffPosition(
+        final result = await _apiService.squareOffPosition(
           userId: uid,
           position: pos,
         );
+        if (result['stat'] == 'Ok') {
+          ordersPlaced++;
+        } else {
+          print('Square Off Failed for ${pos['tsym']}: ${result['emsg']}');
+        }
       }
     }
     
@@ -230,17 +237,19 @@ class PnLService {
     portfolioExitStatus.value = status;
 
     await fetchPositions();
+    return ordersPlaced;
   }
 
-  Future<void> squareOffSingle(Map<String, dynamic> position) async {
+  Future<Map<String, dynamic>> squareOffSingle(Map<String, dynamic> position) async {
     final String? uid = _apiService.userId ?? await _storageService.getUid();
-    if (uid == null) return;
+    if (uid == null) return {'stat': 'Not_Ok', 'emsg': 'User ID not found'};
 
-    await _apiService.squareOffPosition(
+    final result = await _apiService.squareOffPosition(
       userId: uid,
       position: position,
     );
     await fetchPositions();
+    return result;
   }
 
   void dispose() {

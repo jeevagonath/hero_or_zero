@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/glass_widgets.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class UserDetailsPage extends StatelessWidget {
   final Map<String, dynamic> userData;
@@ -30,119 +32,170 @@ class UserDetailsPage extends StatelessWidget {
     final String brokerName = userData['brkname'] ?? 'N/A';
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'User Details',
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings, color: Colors.blueAccent),
-                onPressed: () => Navigator.pushNamed(context, '/settings'),
-              ),
-            ],
-          ),
+          _buildCompactHeader(context, userName, accountId),
           const SizedBox(height: 32),
           _buildInfoCard(
-            title: 'Account Information',
+            title: 'CONNECTION CONFIGURATION',
             children: [
-              _buildInfoRow('Account ID', accountId),
-              _buildInfoRow('Broker', brokerName),
-              _buildInfoRow('Status', 'Connected', isStatus: true),
+              _buildInfoRow('Terminal ID', accountId),
+              _buildInfoRow('Broker Nexus', brokerName),
+              _buildInfoRow('Session State', 'LIVE', isStatus: true),
             ],
           ),
           const SizedBox(height: 24),
           _buildInfoCard(
-            title: 'Personal Info',
+            title: 'HOLDER IDENTITY',
             children: [
-              _buildInfoRow('Name', userName),
-              _buildInfoRow('Email', userData['email'] ?? 'N/A'),
+              _buildInfoRow('Full Name', userName),
+              _buildInfoRow('Email Address', userData['email'] ?? 'N/A'),
+              _buildInfoRow('Access Level', 'ALGO_TRADER', color: const Color(0xFF4D96FF)),
             ],
           ),
           const SizedBox(height: 48),
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: OutlinedButton.icon(
-              onPressed: () => _handleLogout(context),
-              icon: const Icon(Icons.logout, color: Colors.redAccent),
-              label: const Text(
-                'LOGOUT',
-                style: TextStyle(
-                  color: Colors.redAccent,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: Colors.redAccent, width: 2),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
+          NeonButton(
+            onPressed: () => _handleLogout(context),
+            label: 'TERMINATE SESSION',
+            icon: Icons.power_settings_new_rounded,
+            color: const Color(0xFFFF5F5F),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 48),
         ],
       ),
     );
   }
 
+  Widget _buildCompactHeader(BuildContext context, String name, String id) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(
+              colors: [Color(0xFF4D96FF), Color(0xFF00D97E)],
+            ),
+          ),
+          child: CircleAvatar(
+            radius: 28, // Reduced from 50
+            backgroundColor: const Color(0xFF161B22),
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : 'U',
+              style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.white), // Reduced font size
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                name.toUpperCase(),
+                style: GoogleFonts.outfit(
+                  fontSize: 20, // Reduced top name size
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 0.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF00D97E).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  'ID: $id',
+                  style: GoogleFonts.sourceCodePro(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF00D97E),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(
+          icon: const Icon(Icons.settings_rounded, color: Colors.blueGrey, size: 24),
+          onPressed: () => Navigator.pushNamed(context, '/settings'),
+          style: IconButton.styleFrom(
+            backgroundColor: Colors.white.withOpacity(0.05),
+            padding: const EdgeInsets.all(12),
+          ),
+        ),
+      ],
+    );
+  }
+
+
   Widget _buildInfoCard({required String title, required List<Widget> children}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
-      ),
+    return GlassCard(
+      padding: const EdgeInsets.all(24),
+      opacity: 0.05,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
             style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
               color: Colors.blueGrey,
+              letterSpacing: 1.5,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 24),
           ...children,
         ],
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {bool isStatus = false}) {
+  Widget _buildInfoRow(String label, String value, {bool isStatus = false, Color? color}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.blueGrey)),
+          Expanded(
+            flex: 2,
+            child: Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
           if (isStatus)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.greenAccent.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(4),
+                color: const Color(0xFF00D97E).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(6),
               ),
-              child: Text(
-                value,
-                style: const TextStyle(color: Colors.greenAccent, fontSize: 12),
+              child: const Text(
+                'LIVE CONNECTION',
+                style: TextStyle(color: Color(0xFF00D97E), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5),
               ),
             )
           else
-            Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+            Expanded(
+              flex: 3,
+              child: Text(
+                value, 
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: color ?? Colors.white, 
+                  fontWeight: FontWeight.w800, 
+                  fontSize: 14,
+                  fontFamily: 'monospace',
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
         ],
       ),
     );

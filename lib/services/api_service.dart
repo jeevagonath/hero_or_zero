@@ -57,6 +57,7 @@ class ApiService {
           if (_userToken != null) {
             await _storageService.saveUserToken(_userToken!);
             await _storageService.saveUid(userId);
+            _userId = userId; // Update in-memory user ID
           } else {
             return {'stat': 'Not_Ok', 'emsg': 'Login successful but usertoken missing'};
           }
@@ -363,6 +364,71 @@ class ApiService {
       );
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
+      } else {
+        return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'stat': 'Not_Ok', 'emsg': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getMarketWatch({
+    required String userId,
+    String wlname = 'DEFAULT',
+  }) async {
+    final Map<String, dynamic> jData = {
+      'uid': userId,
+      'wlname': wlname,
+    };
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/NorenWClientTP/MarketWatch'),
+        body: 'jData=${jsonEncode(jData)}&jKey=${_userToken ?? ''}',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+      if (response.statusCode == 200) {
+        final dynamic data = jsonDecode(response.body);
+        if (data is List) {
+           return {'stat': 'Ok', 'values': data};
+        }
+        return data as Map<String, dynamic>;
+      } else {
+        return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'stat': 'Not_Ok', 'emsg': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getOptionChain({
+    required String userId,
+    required String exchange,
+    required String tradingSymbol,
+    required String strikePrice,
+    required String count,
+  }) async {
+    final Map<String, dynamic> jData = {
+      'uid': userId,
+      'tsym': tradingSymbol,
+      'exch': exchange,
+      'strprc': strikePrice,
+      'cnt': count,
+    };
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.getOptionChain}'),
+        body: 'jData=${jsonEncode(jData)}&jKey=${_userToken ?? ''}',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+      if (response.statusCode == 200) {
+        final dynamic data = jsonDecode(response.body);
+        if (data is List) {
+          return {'stat': 'Ok', 'values': data};
+        } else if (data is Map<String, dynamic> && data['stat'] == 'Ok' && data['values'] != null) {
+           // Handle case where values is nested
+           return data;
+        }
+        return data as Map<String, dynamic>;
       } else {
         return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
       }

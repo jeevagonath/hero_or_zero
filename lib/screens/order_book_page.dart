@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../widgets/glass_widgets.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 
 class OrderBookPage extends StatefulWidget {
   const OrderBookPage({super.key});
@@ -54,43 +56,85 @@ class _OrderBookPageState extends State<OrderBookPage> {
   Color _getStatusColor(String? status) {
     if (status == null) return Colors.blueGrey;
     final s = status.toLowerCase();
-    if (s.contains('complete')) return Colors.greenAccent;
-    if (s.contains('reject') || s.contains('cancel')) return Colors.redAccent;
+    if (s.contains('complete')) return const Color(0xFF00D97E);
+    if (s.contains('reject') || s.contains('cancel')) return const Color(0xFFFF5F5F);
     if (s.contains('trigger') || s.contains('open') || s.contains('pending')) return Colors.orangeAccent;
     return Colors.blueGrey;
+  }
+
+  String _formatOrderTime(String? timeStr) {
+    if (timeStr == null || timeStr.isEmpty) return 'N/A';
+    try {
+      // Expected format: dd-MM-yyyy HH:mm:ss
+      final parts = timeStr.split(' ');
+      if (parts.length != 2) return timeStr;
+
+      final dateParts = parts[0].split('-');
+      if (dateParts.length != 3) return timeStr;
+
+      final timeParts = parts[1].split(':');
+      if (timeParts.length < 2) return timeStr;
+
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final day = int.parse(dateParts[0]);
+      final month = int.parse(dateParts[1]);
+      final year = dateParts[2]; // Typically full year or last 2 digits
+
+      final hh = int.parse(timeParts[0]);
+      final mm = timeParts[1];
+      
+      final String amPm = hh >= 12 ? 'PM' : 'AM';
+      final int displayHh = hh > 12 ? hh - 12 : (hh == 0 ? 12 : hh);
+
+      return '$day ${months[month - 1]} \'$year, $displayHh:$mm $amPm';
+    } catch (e) {
+      return timeStr;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xFF0D0F12),
       body: RefreshIndicator(
         onRefresh: _fetchOrders,
+        backgroundColor: const Color(0xFF161B22),
+        color: const Color(0xFF4D96FF),
         child: _isLoading 
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: SpinKitPulse(color: Color(0xFF4D96FF)))
           : _errorMessage != null
             ? Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(_errorMessage!, style: const TextStyle(color: Colors.redAccent)),
+                    Icon(Icons.error_outline_rounded, size: 64, color: const Color(0xFFFF5F5F).withOpacity(0.5)),
                     const SizedBox(height: 16),
-                    ElevatedButton(
+                    Text(_errorMessage!, style: const TextStyle(color: Color(0xFFFF5F5F), fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 24),
+                    NeonButton(
                       onPressed: _fetchOrders,
-                      child: const Text('Retry'),
+                      label: 'Retry Fetch',
+                      icon: Icons.refresh_rounded,
                     ),
                   ],
                 ),
               )
             : _orders.isEmpty
-              ? const Center(
-                  child: Text(
-                    'No orders in this session',
-                    style: TextStyle(color: Colors.blueGrey, fontSize: 16),
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.history_rounded, size: 64, color: Colors.blueGrey.withOpacity(0.2)),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Empty Session History',
+                        style: TextStyle(color: Colors.blueGrey, fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
                 )
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                   itemCount: _orders.length,
                   itemBuilder: (context, index) {
                     return _buildOrderCard(_orders[index]);
@@ -103,96 +147,116 @@ class _OrderBookPageState extends State<OrderBookPage> {
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final statusColor = _getStatusColor(order['status']);
     final isBuy = order['trantype'] == 'B';
-    final typeColor = isBuy ? Colors.greenAccent : Colors.redAccent;
+    final typeColor = isBuy ? const Color(0xFF00D97E) : const Color(0xFFFF5F5F);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(20),
+      opacity: 0.05,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    order['tsym'] ?? 'N/A',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order['tsym'] ?? 'N/A',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 15,
+                        letterSpacing: -0.3,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: typeColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: typeColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isBuy ? 'BUY' : 'SELL',
+                            style: TextStyle(color: typeColor, fontSize: 9, fontWeight: FontWeight.w900),
+                          ),
                         ),
-                        child: Text(
-                          isBuy ? 'BUY' : 'SELL',
-                          style: TextStyle(color: typeColor, fontSize: 10, fontWeight: FontWeight.bold),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${order['exch']} | ${order['prd']}',
+                          style: const TextStyle(color: Colors.blueGrey, fontSize: 11, fontWeight: FontWeight.w600),
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${order['exch']} | ${order['prd']}',
-                        style: const TextStyle(color: Colors.blueGrey, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    order['status'] ?? 'UNKNOWN',
-                    style: TextStyle(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      order['status'] ?? 'UNKNOWN',
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 10,
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 4),
                   Text(
-                    order['ordenttm'] ?? '',
-                    style: const TextStyle(color: Colors.blueGrey, fontSize: 10),
+                    _formatOrderTime(order['norentm']),
+                    style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5),
                   ),
                 ],
               ),
             ],
           ),
-          const Divider(color: Colors.white10, height: 24),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Divider(color: Colors.white10, height: 1),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildDataPoint('Qty', '${order['fillshares'] ?? '0'}/${order['qty']}'),
-              _buildDataPoint('Price', order['prc'] ?? '0'),
-              _buildDataPoint('Avg. Price', order['avgprc'] ?? '0'),
+              _buildDataPoint('QUANTITY', '${order['fillshares'] ?? '0'}/${order['qty']}'),
+              _buildDataPoint('PRICE', order['prc'] ?? '0'),
+              _buildDataPoint('AVG. PRICE', order['avgprc'] ?? '0'),
             ],
           ),
           if (order['status'] == 'REJECTED' && order['rejreason'] != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.redAccent.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
+                color: const Color(0xFFFF5F5F).withOpacity(0.05),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFF5F5F).withOpacity(0.1)),
               ),
-              child: Text(
-                'Reason: ${order['rejreason']}',
-                style: const TextStyle(color: Colors.redAccent, fontSize: 11),
+              child: Row(
+                children: [
+                   const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFFFF5F5F)),
+                   const SizedBox(width: 8),
+                   Expanded(
+                     child: Text(
+                        'Reason: ${order['rejreason']}',
+                        style: const TextStyle(color: Color(0xFFFF5F5F), fontSize: 11, fontWeight: FontWeight.w500),
+                      ),
+                   ),
+                ],
               ),
             ),
           ],
@@ -205,11 +269,16 @@ class _OrderBookPageState extends State<OrderBookPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 10)),
-        const SizedBox(height: 4),
+        Text(label.toUpperCase(), style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        const SizedBox(height: 6),
         Text(
           value,
-          style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.8), 
+            fontSize: 14, 
+            fontWeight: FontWeight.w900,
+            fontFamily: 'monospace',
+          ),
         ),
       ],
     );

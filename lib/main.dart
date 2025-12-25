@@ -8,6 +8,8 @@ import 'services/pnl_service.dart';
 import 'screens/settings_page.dart';
 import 'screens/developer_settings_page.dart';
 
+import 'package:google_fonts/google_fonts.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -44,9 +46,24 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF0D0F12),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blueAccent,
+          seedColor: const Color(0xFF4D96FF),
           brightness: Brightness.dark,
+          surface: const Color(0xFF161B22),
+          primary: const Color(0xFF4D96FF),
+          secondary: const Color(0xFF00D97E),
+        ),
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+        appBarTheme: AppBarTheme(
+          backgroundColor: const Color(0xFF0D0F12),
+          elevation: 0,
+          titleTextStyle: GoogleFonts.inter(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
       ),
       routes: {

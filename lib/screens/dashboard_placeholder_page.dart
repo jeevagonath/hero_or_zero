@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/websocket_service.dart';
 import '../core/constants.dart';
+import '../widgets/glass_widgets.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'dart:ui';
 
 class DashboardPlaceholderPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -86,6 +89,55 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
       // Subscribe to Nifty 50 and Sensex
       _wsService.subscribeTouchline('NSE', '26000');
       _wsService.subscribeTouchline('BSE', '1');
+
+      // 3. Fetch Watchlist from Backend
+      try {
+        final mwResponse = await _apiService.getMarketWatch(userId: uid);
+        if (mwResponse['stat'] == 'Ok' && mwResponse['values'] != null) {
+          final List<dynamic> values = mwResponse['values'];
+          
+          // Clear existing local selection to avoid duplicates if any
+          _selectedScrips.clear();
+
+          for (var scrip in values) {
+            final String exch = scrip['exch'] ?? '';
+            final String token = scrip['token'] ?? '';
+            
+            if (exch.isNotEmpty && token.isNotEmpty) {
+               // Initial placeholder
+               final newScrip = {
+                'exch': exch,
+                'token': token,
+                'tsym': scrip['tsym'] ?? '',
+                'lp': '0.00',
+                'o': '0.00',
+                'c_calc': '0.00',
+                'pc_calc': '0.00',
+              };
+              _selectedScrips.add(newScrip);
+              
+              // Subscribe immediately
+              _wsService.subscribeTouchline(exch, token);
+
+              // Fetch quote asynchronously to update detailed data (Open, etc.)
+              _apiService.getQuote(userId: uid, exchange: exch, token: token).then((quote) {
+                 if (mounted && quote['stat'] == 'Ok') {
+                   setState(() {
+                     final int idx = _selectedScrips.indexOf(newScrip);
+                     if (idx != -1) {
+                       _selectedScrips[idx]['lp'] = quote['lp'] ?? '0.00';
+                       _selectedScrips[idx]['o'] = quote['o'] ?? '0.00';
+                       _updateScripCalculation(idx);
+                     }
+                   });
+                 }
+              });
+            }
+          }
+        }
+      } catch (e) {
+        print('Error fetching remote watchlist: $e');
+      }
 
       // Listen for updates
       _wsSubscription = _wsService.messageStream.listen((data) {
@@ -281,15 +333,20 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
                 _buildHeader(),
                 const SizedBox(height: 24),
                 if (_isLoading)
-                  const Center(child: CircularProgressIndicator())
+                  const Center(
+                    child: Padding(
+                      padding: EdgeInsets.only(top: 100),
+                      child: SpinKitPulse(color: Color(0xFF4D96FF), size: 50),
+                    ),
+                  )
                 else if (_errorMessage != null)
                   _buildErrorState()
                 else ...[
                   _buildIndexCards(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   _buildSearchBox(),
                   if (_searchResults.isNotEmpty) _buildSearchResultsList(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   _buildWatchlist(),
                   const SizedBox(height: 32),
                 ],
@@ -320,21 +377,23 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
 
   Widget _buildLiveIndicator() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.greenAccent.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(4),
+        color: const Color(0xFF00D97E).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF00D97E).withOpacity(0.2)),
       ),
       child: const Row(
         children: [
-          Icon(Icons.circle, size: 8, color: Colors.greenAccent),
-          SizedBox(width: 4),
+          Icon(Icons.circle, size: 8, color: Color(0xFF00D97E)),
+          SizedBox(width: 6),
           Text(
             'LIVE',
             style: TextStyle(
-              color: Colors.greenAccent,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
+              color: Color(0xFF00D97E),
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -365,51 +424,76 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
   }
 
   Widget _buildSearchBox() {
-    return TextField(
-      controller: _searchController,
-      onChanged: _onSearchChanged,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: 'Search Scrip (e.g. RELIANCE)',
-        hintStyle: const TextStyle(color: Colors.blueGrey),
-        prefixIcon: const Icon(Icons.search, color: Colors.blueAccent),
-        suffixIcon: _isSearching
-            ? const Padding(
-                padding: EdgeInsets.all(12.0),
-                child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
-              )
-            : null,
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.05),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      opacity: 0.03,
+      borderRadius: BorderRadius.circular(16),
+      child: TextField(
+        controller: _searchController,
+        onChanged: _onSearchChanged,
+        style: const TextStyle(color: Colors.white, fontSize: 15),
+        decoration: InputDecoration(
+          hintText: 'Search Scrip (e.g. RELIANCE)',
+          hintStyle: const TextStyle(color: Colors.blueGrey, fontSize: 14),
+          prefixIcon: const Icon(Icons.search, color: Color(0xFF4D96FF), size: 20),
+          suffixIcon: _isSearching
+              ? const Padding(
+                  padding: EdgeInsets.all(12.0),
+                  child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4D96FF))),
+                )
+              : null,
+          filled: false,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        ),
       ),
     );
   }
 
   Widget _buildSearchResultsList() {
     return Container(
-      margin: const EdgeInsets.only(top: 8),
-      constraints: const BoxConstraints(maxHeight: 250),
+      margin: const EdgeInsets.only(top: 12),
+      constraints: const BoxConstraints(maxHeight: 300),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
+        color: const Color(0xFF161B22).withOpacity(0.8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
-      child: ListView.separated(
-        padding: EdgeInsets.zero,
-        shrinkWrap: true,
-        itemCount: _searchResults.length,
-        separatorBuilder: (_, __) => const Divider(color: Colors.white10, height: 1),
-        itemBuilder: (context, index) {
-          final scrip = _searchResults[index];
-          return ListTile(
-            title: Text(scrip['tsym'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 14)),
-            subtitle: Text(scrip['exch'] ?? '', style: const TextStyle(color: Colors.blueGrey, fontSize: 12)),
-            trailing: const Icon(Icons.add, color: Colors.blueAccent, size: 20),
-            onTap: () => _addScrip(scrip),
-          );
-        },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: ListView.separated(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            shrinkWrap: true,
+            itemCount: _searchResults.length,
+            separatorBuilder: (_, __) => Divider(color: Colors.white.withOpacity(0.05), height: 1),
+            itemBuilder: (context, index) {
+              final scrip = _searchResults[index];
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                title: Text(scrip['tsym'] ?? '', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                subtitle: Text(scrip['exch'] ?? '', style: const TextStyle(color: Colors.blueGrey, fontSize: 12, letterSpacing: 1)),
+                trailing: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4D96FF).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.add, color: Color(0xFF4D96FF), size: 18),
+                ),
+                onTap: () => _addScrip(scrip),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -429,7 +513,7 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: _selectedScrips.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 12),
+          separatorBuilder: (_, __) => const SizedBox(height: 16),
           itemBuilder: (context, index) {
             final scrip = _selectedScrips[index];
             return _buildScripCard(scrip, index);
@@ -442,88 +526,116 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
   Widget _buildScripCard(Map<String, dynamic> scrip, int index) {
     final String change = scrip['pc_calc'] ?? '0.00';
     final bool isPositive = !change.startsWith('-');
+    final Color changeColor = isPositive ? const Color(0xFF00D97E) : const Color(0xFFFF5F5F);
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
+        color: Colors.white.withOpacity(0.03),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Row(
         children: [
           Expanded(
-            flex: 3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   scrip['tsym'],
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: const TextStyle(
+                    fontSize: 13, // Reduced from 16 to 13
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   scrip['exch'],
-                  style: const TextStyle(fontSize: 12, color: Colors.blueGrey),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.4),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
           ),
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  scrip['lp'],
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '₹${scrip['lp']}',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Icon(
-                      isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-                      size: 12,
-                      color: isPositive ? Colors.greenAccent : Colors.redAccent,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${scrip['c_calc']} ($change%)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isPositive ? Colors.greenAccent : Colors.redAccent,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$change%',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: changeColor,
+                  fontWeight: FontWeight.w500,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, size: 22, color: Colors.redAccent),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
-            onPressed: () async {
+          const SizedBox(width: 16),
+          InkWell(
+            onTap: () async {
               final String uid = widget.userData['actid'] ?? _apiService.userId ?? '';
-              // 1. Sync with Shoonya Backend
+              final String scripName = scrip['tsym'] ?? 'Scrip';
+              
               try {
-                await _apiService.deleteMultiMWScrips(
+                final result = await _apiService.deleteMultiMWScrips(
                   userId: uid,
                   scrips: '${scrip['exch']}|${scrip['token']}',
                 );
+
+                if (mounted) {
+                  if (result['stat'] == 'Ok') {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('$scripName removed from Watchlist'),
+                        backgroundColor: const Color(0xFF00D97E),
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+
+                    setState(() {
+                      _wsService.unsubscribeTouchline(scrip['exch'], scrip['token']);
+                      _selectedScrips.remove(scrip);
+                    });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Failed to remove: ${result['emsg']}'),
+                        backgroundColor: const Color(0xFFFF5F5F),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
               } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Network Error during deletion'),
+                      backgroundColor: Color(0xFFFF5F5F),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
                 print('Error syncing delete with backend: $e');
               }
-
-              // 2. Unsubscribe and Remove locally
-              setState(() {
-                _wsService.unsubscribeTouchline(scrip['exch'], scrip['token']);
-                _selectedScrips.removeAt(index);
-              });
             },
+            child: Icon(Icons.close, size: 18, color: Colors.white.withOpacity(0.3)),
           ),
         ],
       ),
@@ -535,117 +647,55 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
     final String change = data['pc_calc'] ?? '0.00';
     final String absChange = data['c_calc'] ?? '0.00';
     final bool isPositive = !change.startsWith('-');
+    final Color color = isPositive ? const Color(0xFF00D97E) : const Color(0xFFFF5F5F);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
-      ),
+    return GlassCard(
+      padding: const EdgeInsets.all(20),
+      opacity: 0.05,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 14,
-              color: Colors.blueGrey,
-              fontWeight: FontWeight.bold,
+            style: TextStyle(
+              fontSize: 11, // Reduced from 13
+              color: Colors.white.withOpacity(0.5),
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.5,
             ),
           ),
           const SizedBox(height: 12),
           Text(
             ltp,
             style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+              fontSize: 18, // Reduced from 22
+              fontWeight: FontWeight.w900,
               color: Colors.white,
+              letterSpacing: -1,
             ),
           ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(
-                isPositive ? Icons.arrow_upward : Icons.arrow_downward,
-                size: 14,
-                color: isPositive ? Colors.greenAccent : Colors.redAccent,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '$absChange ($change%)',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: isPositive ? Colors.greenAccent : Colors.redAccent,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickStats() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Quick Stats',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 16),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-          childAspectRatio: 2.5,
-          children: [
-            _buildStatItem('Open Positions', '0', Icons.assessment_outlined),
-            _buildStatItem('Today\'s P&L', '₹0.00', Icons.account_balance_wallet_outlined),
-            _buildStatItem('Margin Used', '₹0.00', Icons.pie_chart_outline),
-            _buildStatItem('Orders', '0', Icons.shopping_cart_outlined),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 20, color: Colors.blueAccent),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  label,
-                  style: const TextStyle(fontSize: 10, color: Colors.blueGrey),
-                  overflow: TextOverflow.ellipsis,
+                Icon(
+                  isPositive ? Icons.trending_up : Icons.trending_down,
+                  size: 12, // Reduced from 14
+                  color: color,
                 ),
+                const SizedBox(width: 4),
                 Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                  '$absChange ($change%)',
+                  style: TextStyle(
+                    fontSize: 10, // Reduced from 12
+                    color: color,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
@@ -656,3 +706,4 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
     );
   }
 }
+

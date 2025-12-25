@@ -111,3 +111,33 @@
     - [x] Rename App Package to `com.android.herozerotrade` <!-- id: 172 -->
     - [x] Implement Digital App Signing (Keystore & Properties) <!-- id: 173 -->
     - [x] Configure build.gradle.kts for Release Signing <!-- id: 174 -->
+- [x] UI Modernization (Dark Glassmorphism) <!-- id: 175 -->
+    - [x] Create Global Theme & Typography (Inter/Outfit) <!-- id: 176 -->
+    - [x] Implement reusable `GlassCard` and `NeonButton` <!-- id: 177 -->
+    - [x] Overhaul Login Page <!-- id: 178 -->
+    - [x] Overhaul Dashboard (Indices, Watchlist, Search) <!-- id: 179 -->
+    - [x] Overhaul Strategy Page (Status, Strikes, Execution) <!-- id: 180 -->
+    - [x] Overhaul Positions Page & P&L Display <!-- id: 181 -->
+    - [x] Overhaul Order & Trade Book Pages <!-- id: 182 -->
+    - [x] Overhaul User Profile & Settings <!-- id: 183 -->
+    - [x] Refine Micro-interactions and Loading States <!-- id: 184 -->
+- [x] Fix UI Layout Bugs <!-- id: 185 -->
+    - [x] Fix Header Day P&L Overflow in `MainScreen` <!-- id: 186 -->
+    - [x] Fix Button Overflow in `StrategyPage` <!-- id: 187 -->
+    - [x] Improve `NeonButton` text handling <!-- id: 188 -->
+    - [x] Fix "User ID Not Found" Logic Bug in `ApiService` <!-- id: 189 -->
+    - [x] Improve Account Page UI (Add Settings Icon, Fix Overflow) <!-- id: 190 -->
+    - [x] Modernize Settings Page UI (Glassmorphism) <!-- id: 191 -->
+    - [x] Add Absolute Change to Market Overview <!-- id: 192 -->
+    - [x] Add App Logo to Headers <!-- id: 193 -->
+    - [x] Refactor Strategy Page Layout (Move Engine outside card) <!-- id: 194 -->
+    - [x] Implement Order Confirmation Dialogs <!-- id: 195 -->
+        - [x] Create reusable `GlassConfirmationDialog` <!-- id: 196 -->
+        - [x] Integrate into `StrategyPage` (Place Orders) <!-- id: 197 -->
+        - [x] Integrate into `PositionsPage` (Close/Close All) <!-- id: 198 -->
+    - [x] Improve "Close All" Feedback (No positions check) <!-- id: 199 -->
+    - [x] Enhance Order Book Time Display <!-- id: 200 -->
+    - [x] Redesign Watchlist Item Layout (Cleaner, Compact) <!-- id: 201 -->
+    - [x] Redesign Strategy Strike Layout (Cleaner, Compact, Delete Btn) <!-- id: 202 -->
+    - [x] Implement Watchlist Deletion Feedback (SnackBar) <!-- id: 203 -->
+    - [x] Fix Strategy Quantity Logic (Use `GetOptionChain` for Lot Size) <!-- id: 204 -->

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/storage_service.dart';
 import '../services/strategy_service.dart';
 import '../services/pnl_service.dart';
+import '../widgets/glass_widgets.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -61,7 +63,12 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings saved successfully')),
+        SnackBar(
+          content: const Text('Settings saved successfully'),
+          backgroundColor: const Color(0xFF00D97E),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
       Navigator.pop(context);
     }
@@ -70,182 +77,217 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
+      backgroundColor: const Color(0xFF0D0F12),
       appBar: AppBar(
-        title: const Text('Strategy Settings'),
-        backgroundColor: Colors.transparent,
+        title: Text('Strategy Settings', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF0D0F12),
         elevation: 0,
+        centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF4D96FF)))
           : SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionHeader('NIFTY Configuration'),
-                  _buildDropdownRow('Trading Day', _niftyDay, (val) => setState(() => _niftyDay = val!)),
-                  _buildTextFieldRow('Lot Size', _niftyLotController),
-                  const SizedBox(height: 32),
-                  _buildSectionHeader('SENSEX Configuration'),
-                  _buildDropdownRow('Trading Day', _sensexDay, (val) => setState(() => _sensexDay = val!)),
-                  _buildTextFieldRow('Lot Size', _sensexLotController),
-                  const SizedBox(height: 32),
-                  _buildSectionHeader('General Settings'),
-                  _buildTimePickerRow('Strategy Trigger Time', _strategyTime, (val) => setState(() => _strategyTime = val)),
-                  _buildTimePickerRow('Daily Exit Time (Hard Stop)', _exitTime, (val) => setState(() => _exitTime = val)),
-                  _buildSwitchRow('Show Test Capture Button', _showTestButton, (val) => setState(() => _showTestButton = val)),
-                  const SizedBox(height: 48),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: ElevatedButton(
-                      onPressed: _saveSettings,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueAccent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Save Settings', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  _buildSectionHeader('NIFTY CONFIGURATION', Icons.bar_chart_rounded),
+                  const SizedBox(height: 16),
+                  GlassCard(
+                    padding: const EdgeInsets.all(20),
+                    opacity: 0.05,
+                    child: Column(
+                      children: [
+                        _buildDropdownRow('Trading Day', _niftyDay, (val) => setState(() => _niftyDay = val!)),
+                        const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Colors.white10)),
+                        _buildTextFieldRow('Lot Size', _niftyLotController),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 32),
+                  
+                  _buildSectionHeader('SENSEX CONFIGURATION', Icons.show_chart_rounded),
+                  const SizedBox(height: 16),
+                  GlassCard(
+                    padding: const EdgeInsets.all(20),
+                    opacity: 0.05,
+                    child: Column(
+                      children: [
+                        _buildDropdownRow('Trading Day', _sensexDay, (val) => setState(() => _sensexDay = val!)),
+                        const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Colors.white10)),
+                        _buildTextFieldRow('Lot Size', _sensexLotController),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  _buildSectionHeader('GENERAL SETTINGS', Icons.tune_rounded),
+                  const SizedBox(height: 16),
+                  GlassCard(
+                    padding: const EdgeInsets.all(20),
+                    opacity: 0.05,
+                    child: Column(
+                      children: [
+                        _buildTimePickerRow('Strategy Trigger Time', _strategyTime, (val) => setState(() => _strategyTime = val)),
+                        const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Colors.white10)),
+                        _buildTimePickerRow('Daily Exit Time (Hard Stop)', _exitTime, (val) => setState(() => _exitTime = val)),
+                        const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Colors.white10)),
+                        _buildSwitchRow('Show Test Capture Button', _showTestButton, (val) => setState(() => _showTestButton = val)),
+                      ],
+                    ),
+                  ),
+                  
+                  const SizedBox(height: 48),
+                  NeonButton(
+                    onPressed: _saveSettings,
+                    label: 'SAVE CONFIGURATION',
+                    icon: Icons.save_rounded,
+                  ),
+                  const SizedBox(height: 24),
                 ],
               ),
             ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Text(
-        title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-      ),
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFF4D96FF), size: 20),
+        const SizedBox(width: 12),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 12, 
+            fontWeight: FontWeight.w900, 
+            color: Colors.blueGrey,
+            letterSpacing: 1.5,
+          ),
+        ),
+      ],
     );
   }
 
   Widget _buildDropdownRow(String label, String value, ValueChanged<String?> onChanged) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.white10),
-            ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF4D96FF).withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF4D96FF).withOpacity(0.2)),
+          ),
+          child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
               value: value,
-              items: _days.map((d) => DropdownMenuItem(value: d, child: Text(d, style: const TextStyle(color: Colors.white)))).toList(),
+              items: _days.map((d) => DropdownMenuItem(value: d, child: Text(d, style: GoogleFonts.outfit(color: Colors.white)))).toList(),
               onChanged: onChanged,
-              underline: const SizedBox(),
               dropdownColor: const Color(0xFF1E293B),
+              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF4D96FF), size: 18),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildTextFieldRow(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
-          SizedBox(
-            width: 80,
-            child: TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                filled: true,
-                fillColor: Colors.white.withOpacity(0.05),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(vertical: 8),
-              ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+        SizedBox(
+          width: 100,
+          child: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(color: const Color(0xFF00D97E), fontWeight: FontWeight.bold, fontSize: 15),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: const Color(0xFF00D97E).withOpacity(0.1),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              isDense: true,
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildTimePickerRow(String label, String value, ValueChanged<String> onSelected) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
-          InkWell(
-            onTap: () async {
-              final timeParts = value.split(':');
-              final initialTime = TimeOfDay(
-                hour: int.parse(timeParts[0]),
-                minute: int.parse(timeParts[1]),
-              );
-              final pickedTime = await showTimePicker(
-                context: context,
-                initialTime: initialTime,
-                builder: (context, child) {
-                  return Theme(
-                    data: Theme.of(context).copyWith(
-                      colorScheme: const ColorScheme.dark(
-                        primary: Colors.blueAccent,
-                        onPrimary: Colors.white,
-                        surface: Color(0xFF1E293B),
-                        onSurface: Colors.white,
-                      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+        InkWell(
+          onTap: () async {
+            final timeParts = value.split(':');
+            final initialTime = TimeOfDay(
+              hour: int.parse(timeParts[0]),
+              minute: int.parse(timeParts[1]),
+            );
+            final pickedTime = await showTimePicker(
+              context: context,
+              initialTime: initialTime,
+              builder: (context, child) {
+                return Theme(
+                  data: Theme.of(context).copyWith(
+                    colorScheme: const ColorScheme.dark(
+                      primary: Color(0xFF4D96FF),
+                      onPrimary: Colors.white,
+                      surface: Color(0xFF161B22),
+                      onSurface: Colors.white,
                     ),
-                    child: child!,
-                  );
-                },
-              );
-              if (pickedTime != null) {
-                final formattedTime = '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}';
-                onSelected(formattedTime);
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white10),
-              ),
-              child: Text(
-                value,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-              ),
+                    textButtonTheme: TextButtonThemeData(
+                      style: TextButton.styleFrom(foregroundColor: const Color(0xFF4D96FF)),
+                    ),
+                  ),
+                  child: child!,
+                );
+              },
+            );
+            if (pickedTime != null) {
+              final formattedTime = '${pickedTime.hour.toString().padLeft(2, '0')}:${pickedTime.minute.toString().padLeft(2, '0')}';
+              onSelected(formattedTime);
+            }
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF4D96FF).withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF4D96FF).withOpacity(0.2)),
+            ),
+            child: Text(
+              value,
+              style: GoogleFonts.outfit(color: const Color(0xFF4D96FF), fontWeight: FontWeight.bold, fontSize: 15),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildSwitchRow(String label, bool value, ValueChanged<bool> onChanged) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 16)),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeColor: Colors.blueAccent,
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeColor: const Color(0xFF4D96FF),
+          activeTrackColor: const Color(0xFF4D96FF).withOpacity(0.3),
+          inactiveThumbColor: Colors.blueGrey,
+          inactiveTrackColor: Colors.white10,
+        ),
+      ],
     );
   }
 }

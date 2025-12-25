@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../services/strategy_service.dart';
 import '../services/pnl_service.dart';
+import '../widgets/glass_widgets.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
+import 'dart:ui';
 
 class StrategyPage extends StatefulWidget {
   const StrategyPage({super.key});
@@ -93,12 +96,15 @@ class _StrategyPageState extends State<StrategyPage> {
                           builder: (context, resolving, _) {
                             if (resolving) {
                               return const Center(
-                                child: Column(
-                                  children: [
-                                    CircularProgressIndicator(color: Colors.blueAccent),
-                                    SizedBox(height: 16),
-                                    Text('Resolving contracts...', style: TextStyle(color: Colors.blueGrey)),
-                                  ],
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 40),
+                                  child: Column(
+                                    children: [
+                                      SpinKitThreeBounce(color: Color(0xFF4D96FF), size: 30),
+                                      SizedBox(height: 16),
+                                      Text('Resolving optimal contracts...', style: TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w600)),
+                                    ],
+                                  ),
                                 ),
                               );
                             }
@@ -129,117 +135,148 @@ class _StrategyPageState extends State<StrategyPage> {
   }
 
   Widget _buildInfoSection() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.indigo.withOpacity(0.3),
-            Colors.blueAccent.withOpacity(0.1),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4D96FF).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.hub_rounded, color: Color(0xFF4D96FF), size: 18),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Strategy Engine',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            ),
           ],
         ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.blueAccent.withOpacity(0.2), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.2),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        const SizedBox(height: 16),
+        GlassCard(
+          padding: const EdgeInsets.all(24),
+          opacity: 0.05, // Slightly reduced opacity to match Exit Plan
+          borderRadius: BorderRadius.circular(24), // Match Exit Plan border radius
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.blueAccent.withAlpha(40),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.analytics_outlined, color: Colors.blueAccent, size: 20),
+              ValueListenableBuilder<String>(
+                valueListenable: _strategyService.currentTime,
+                builder: (context, time, _) => _buildInfoRow(Icons.schedule_rounded, 'System Clock', time, isHighlighted: true),
               ),
-              const SizedBox(width: 12),
-              const Text(
-                'Strategy Monitor', 
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: 0.5)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Divider(color: Colors.white10, height: 1),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                   Expanded(
+                    child: ValueListenableBuilder<String>(
+                      valueListenable: _strategyService.targetIndex,
+                      builder: (context, index, _) => _buildInfoStat('Index', index, color: const Color(0xFF4D96FF)),
+                    ),
+                  ),
+                  Expanded(
+                    child: ValueListenableBuilder<bool>(
+                      valueListenable: _strategyService.isStrategyDay,
+                      builder: (context, active, _) => _buildInfoStat(
+                        'Strategy Day', 
+                        active ? 'ACTIVE' : 'INACTIVE', 
+                        color: active ? const Color(0xFF00D97E) : const Color(0xFFFF5F5F)
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+               const SizedBox(height: 20), // Spacing between rows
+              ListenableBuilder(
+                listenable: Listenable.merge([_strategyService.currentTime, _strategyService.strategyTime, _strategyService.isStrategyDay]),
+                builder: (context, _) {
+                  final String current = _strategyService.currentTime.value;
+                  final String target = _strategyService.strategyTime.value;
+                  final bool isRunning = _strategyService.isStrategyDay.value && 
+                                       current.isNotEmpty && 
+                                       current.substring(0, 5).compareTo(target) >= 0;
+                  return Row(
+                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                     children: [
+                       Expanded(
+                         child: _buildInfoStat(
+                          'Engine Status', 
+                          isRunning ? 'RUNNING' : 'IDLE', 
+                          color: isRunning ? const Color(0xFF00D97E) : Colors.blueGrey
+                        ),
+                       ),
+                       Expanded(
+                         child: ValueListenableBuilder<String>(
+                            valueListenable: _strategyService.strategyTime,
+                            builder: (context, time, _) => _buildInfoStat('Trigger Time', '$time:00'),
+                          ),
+                       ),
+                     ],
+                  );
+                },
+              ),
+              ValueListenableBuilder<String?>(
+                valueListenable: _strategyService.capturedSpotPrice,
+                builder: (context, spot, _) {
+                  if (spot == null) return const SizedBox.shrink();
+                  return Column(
+                    children: [
+                       const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20),
+                        child: Divider(color: Colors.white10, height: 1),
+                      ),
+                      _buildInfoRow(Icons.gps_fixed_rounded, 'Captured Spot', spot, isHighlighted: true),
+                    ],
+                  );
+                },
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          ValueListenableBuilder<String>(
-            valueListenable: _strategyService.currentTime,
-            builder: (context, time, _) => _buildInfoRow(Icons.access_time, 'Current Clock', time, isHighlighted: true),
+        ),
+      ],
+    );
+  }
+
+  // Helper method for grid-like stats (simpler than full row)
+  Widget _buildInfoStat(String label, String value, {Color? color}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label.toUpperCase(), style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: TextStyle(
+            color: color ?? const Color(0xFF00D97E),
+            fontWeight: FontWeight.w900,
+            fontSize: 16,
+            letterSpacing: -0.5,
           ),
-          const Divider(color: Colors.white10, height: 20),
-          ValueListenableBuilder<String>(
-            valueListenable: _strategyService.targetIndex,
-            builder: (context, index, _) => _buildInfoRow(Icons.insights, 'Target Index', index, color: Colors.blueAccent),
-          ),
-          const SizedBox(height: 12),
-          ValueListenableBuilder<bool>(
-            valueListenable: _strategyService.isStrategyDay,
-            builder: (context, active, _) => _buildInfoRow(
-              Icons.calendar_today, 
-              'Strategy Day', 
-              active ? 'TODAY' : 'Not Active', 
-              color: active ? Colors.greenAccent : Colors.orangeAccent
-            ),
-          ),
-          const SizedBox(height: 12),
-          ListenableBuilder(
-            listenable: Listenable.merge([_strategyService.currentTime, _strategyService.strategyTime, _strategyService.isStrategyDay]),
-            builder: (context, _) {
-              final String current = _strategyService.currentTime.value;
-              final String target = _strategyService.strategyTime.value;
-              final bool isRunning = _strategyService.isStrategyDay.value && 
-                                   current.isNotEmpty && 
-                                   current.substring(0, 5).compareTo(target) >= 0;
-              return _buildInfoRow(
-                Icons.bolt_outlined, 
-                'Execution State', 
-                isRunning ? 'RUNNING' : 'IDLE', 
-                color: isRunning ? Colors.greenAccent : Colors.blueGrey
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          ValueListenableBuilder<String>(
-            valueListenable: _strategyService.strategyTime,
-            builder: (context, time, _) => _buildInfoRow(Icons.schedule, 'Trigger Time', '$time:00'),
-          ),
-          ValueListenableBuilder<String?>(
-            valueListenable: _strategyService.capturedSpotPrice,
-            builder: (context, spot, _) {
-              if (spot == null) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: _buildInfoRow(Icons.my_location, 'Spot Captured', spot, isHighlighted: true),
-              );
-            },
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildInfoRow(IconData icon, String label, String value, {bool isHighlighted = false, Color? color}) {
     return Row(
       children: [
-        Icon(icon, color: Colors.blueGrey, size: 16),
-        const SizedBox(width: 10),
-        Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 13)),
+        Icon(icon, color: Colors.white.withOpacity(0.35), size: 18),
+        const SizedBox(width: 14),
+        Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 13, fontWeight: FontWeight.w600)),
         const Spacer(),
         Text(
           value,
           style: TextStyle(
-            color: color ?? (isHighlighted ? Colors.greenAccent : Colors.white),
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
+            color: color ?? (isHighlighted ? const Color(0xFF00D97E) : Colors.white),
+            fontWeight: FontWeight.w900,
+            fontSize: 15,
+            letterSpacing: (label.contains('Time') || label.contains('Clock')) ? 1 : null,
             fontFamily: (label.contains('Time') || label.contains('Clock')) ? 'monospace' : null,
           ),
         ),
@@ -254,38 +291,43 @@ class _StrategyPageState extends State<StrategyPage> {
         builder: (context, _) => Column(
           children: [
             if (_strategyService.isCapturing.value || _strategyService.isResolving.value)
-              const CircularProgressIndicator(color: Colors.blueAccent)
+              const SpinKitDoubleBounce(color: Color(0xFF4D96FF), size: 80)
             else
-              const Icon(Icons.timer_outlined, size: 64, color: Colors.blueGrey),
-            const SizedBox(height: 16),
+              Icon(Icons.hourglass_empty_rounded, size: 80, color: Colors.blueGrey.withOpacity(0.3)),
+            const SizedBox(height: 24),
             if (_strategyService.errorMessage.value != null)
-              Text(
-                _strategyService.errorMessage.value!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+              GlassCard(
+                color: Colors.redAccent,
+                opacity: 0.1,
+                child: Text(
+                  _strategyService.errorMessage.value!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Color(0xFFFF5F5F), fontWeight: FontWeight.w800),
+                ),
               )
             else
               ValueListenableBuilder<String>(
                 valueListenable: _strategyService.strategyTime,
                 builder: (context, time, _) => Text(
                   _strategyService.statusMessage.value ?? (_strategyService.isStrategyDay.value 
-                      ? 'Waiting for $time capture...' 
-                      : 'Strategy inactive. Next run on ...'), 
+                      ? 'Engine pre-warmed. Waiting for $time trigger...' 
+                      : 'Strategy inactive. Next automated run scheduled.'), 
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.blueGrey),
+                  style: const TextStyle(color: Colors.blueGrey, fontSize: 14, fontWeight: FontWeight.w500),
                 ),
               ),
             if (_strategyService.errorMessage.value != null || (_strategyService.isStrategyDay.value && _strategyService.capturedSpotPrice.value == null)) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
               ValueListenableBuilder<bool>(
                 valueListenable: _strategyService.showTestButton,
                 builder: (context, show, _) {
                   if (!show && _strategyService.errorMessage.value == null) {
                     return const SizedBox.shrink();
                   }
-                  return ElevatedButton(
+                  return NeonButton(
                     onPressed: _strategyService.captureSpotPrice,
-                    child: Text(_strategyService.errorMessage.value != null ? 'Retry Capture' : 'Test Capture Now'),
+                    label: _strategyService.errorMessage.value != null ? 'Retry Sequence' : 'Manually Trigger Engine',
+                    icon: Icons.play_arrow_rounded,
                   );
                 },
               ),
@@ -323,37 +365,34 @@ class _StrategyPageState extends State<StrategyPage> {
 
   Widget _buildStrikeCard(Map<String, dynamic> strike, {required bool isPut}) {
     final int index = _strategyService.strikes.value.indexOf(strike);
+    final bool isSelected = strike['selected'] ?? false;
+    final Color accentColor = isPut ? const Color(0xFFFF5F5F) : const Color(0xFF00D97E);
+
     return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.04),
+        color: isSelected ? accentColor.withOpacity(0.05) : Colors.white.withOpacity(0.03),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: (strike['selected'] ?? false) 
-              ? (isPut ? Colors.redAccent.withOpacity(0.6) : Colors.greenAccent.withOpacity(0.6))
-              : Colors.white10,
-          width: (strike['selected'] ?? false) ? 2.0 : 1.0,
+          color: isSelected ? accentColor.withOpacity(0.2) : Colors.white.withOpacity(0.05)
         ),
       ),
       child: InkWell(
         onTap: () => _strategyService.toggleStrikeSelection(index),
+        borderRadius: BorderRadius.circular(12),
         child: Row(
           children: [
-            Theme(
-              data: ThemeData(unselectedWidgetColor: Colors.white24),
-              child: Transform.scale(
-                scale: 1.2,
-                child: Checkbox(
-                  value: strike['selected'] ?? false,
-                  activeColor: isPut ? Colors.redAccent : Colors.greenAccent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                  onChanged: (val) => _strategyService.toggleStrikeSelection(index),
-                ),
-              ),
+            Checkbox(
+              value: isSelected,
+              activeColor: accentColor,
+              checkColor: Colors.black,
+              side: BorderSide(color: Colors.white.withOpacity(0.2), width: 1.5),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              visualDensity: VisualDensity.compact,
+              onChanged: (val) => _strategyService.toggleStrikeSelection(index),
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -361,56 +400,57 @@ class _StrategyPageState extends State<StrategyPage> {
                   Text(
                     '${strike['strike']} ${strike['type']}',
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 16,
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    strike['exd'] ?? 'No Expiry',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withOpacity(0.5),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    isPut ? 'OTM Put Option (PE)' : 'OTM Call Option (CE)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isPut ? Colors.redAccent.withOpacity(0.8) : Colors.greenAccent.withOpacity(0.8),
-                    ),
+                  Row(
+                    children: [
+                      Text(
+                        strike['exd'] ?? 'No Expiry',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.4),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Row(
-                  children: [
-                    const Text('LTP', style: TextStyle(color: Colors.blueGrey, fontSize: 10)),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
-                      onPressed: () => _strategyService.deleteStrike(index),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
-                    ),
-                  ],
-                ),
                 Text(
                   '₹${strike['lp'] ?? '0.00'}',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: isPut ? Colors.redAccent : Colors.greenAccent,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'monospace',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: accentColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    isPut ? 'PUT' : 'CALL',
+                    style: TextStyle(fontSize: 10, color: accentColor, fontWeight: FontWeight.w800),
                   ),
                 ),
               ],
+            ),
+            const SizedBox(width: 12),
+            InkWell(
+              onTap: () => _strategyService.deleteStrike(index),
+              child: Icon(Icons.close, color: Colors.white.withOpacity(0.3), size: 18),
             ),
           ],
         ),
@@ -445,33 +485,33 @@ class _StrategyPageState extends State<StrategyPage> {
               ],
             ),
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.04),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white10),
-              ),
+            GlassCard(
+              padding: const EdgeInsets.all(24),
+              opacity: 0.05,
+              borderRadius: BorderRadius.circular(24),
               child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildExitStat('Total P&L', '₹${totalPnL.toStringAsFixed(2)}', 
-                        color: totalPnL >= 0 ? Colors.greenAccent : Colors.redAccent),
+                        color: totalPnL >= 0 ? const Color(0xFF00D97E) : const Color(0xFFFF5F5F)),
                       _buildExitStat('Peak Profit', '₹${peak.toStringAsFixed(2)}'),
                     ],
                   ),
-                  const Divider(height: 32, color: Colors.white10),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Divider(height: 1, color: Colors.white10),
+                  ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildExitStat(
-                        'Portfolio TSL', 
-                        tsl == -999999.0 ? (totalLots > 0 ? 'Activating at ₹${(200 * totalLots).toInt()}' : 'Pending') : '₹${tsl.toStringAsFixed(2)}',
+                        'Trigger TSL', 
+                        tsl == -999999.0 ? (totalLots > 0 ? 'Target ₹${(200 * totalLots).toInt()}' : 'Pending') : '₹${tsl.toStringAsFixed(2)}',
                         color: tsl == -999999.0 ? Colors.blueGrey : Colors.orangeAccent,
                       ),
-                      _buildExitStat('Hard Stop', exitTime, color: Colors.blueAccent),
+                      _buildExitStat('Exit Time', exitTime, color: const Color(0xFF4D96FF)),
                     ],
                   ),
                 ],
@@ -489,14 +529,15 @@ class _StrategyPageState extends State<StrategyPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 10)),
-        const SizedBox(height: 2),
+        Text(label.toUpperCase(), style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        const SizedBox(height: 6),
         Text(
           value,
           style: TextStyle(
-            color: color ?? Colors.greenAccent,
-            fontWeight: FontWeight.bold,
-            fontSize: 14,
+            color: color ?? const Color(0xFF00D97E),
+            fontWeight: FontWeight.w900,
+            fontSize: 16,
+            letterSpacing: -0.5,
           ),
         ),
       ],
@@ -504,19 +545,31 @@ class _StrategyPageState extends State<StrategyPage> {
   }
 
   Widget _buildPlaceOrderButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: _strategyService.placeOrders,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.blueAccent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-        child: const Text(
-          'PLACE ORDER',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
+    return NeonButton(
+      onPressed: _showOrderConfirmationDialog,
+      label: 'INITIATE SEQUENCE',
+      icon: Icons.rocket_launch_rounded,
+    );
+  }
+
+  void _showOrderConfirmationDialog() {
+    final selectedStrikes = _strategyService.strikes.value.where((s) => s['selected'] == true).toList();
+    if (selectedStrikes.isEmpty) return;
+
+    final List<Map<String, String>> items = selectedStrikes.map((s) {
+      return {
+        'label': '${s['strike']} ${s['type']}',
+        'value': 'BUY @ MARKET',
+      };
+    }).toList();
+
+    showDialog(
+      context: context,
+      builder: (context) => GlassConfirmationDialog(
+        title: 'Confirm Execution',
+        items: items,
+        confirmLabel: 'EXECUTE ORDERS',
+        onConfirm: _strategyService.placeOrders,
       ),
     );
   }

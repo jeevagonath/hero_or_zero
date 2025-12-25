@@ -19,10 +19,15 @@ Clean up the Dashboard UI by removing redundant stats and fixing the search usab
 #### [MODIFY] [dashboard_placeholder_page.dart](file:///d:/FlutterApps/hero_or_zero/lib/screens/dashboard_placeholder_page.dart)
 - **UI Cleanup**:
     - Remove `_buildQuickStats`.
-    - Change `_buildSearchResultsOverlay` to a height-limited `ListView` embedded directly in the main `Column` when searching, so it doesn't float over the text box.
-- **Backend Sync**:
+    - Change `_buildSearchResultsOverlay` to a height-limited `ListView` embedded directly in the main `Column`.
+    - **[Implemented] List Item Redesign**:
+        - Updated `Watchlist` and `Strategy Strike List` to use a cleaner, column-based layout (Symbol/Exch vs Price/Change).
+        - Integrated compact "Delete" (X) buttons.
+- **[Implemented] Backend Sync (Watchlist)**:
+    - On Init: Call `getMarketWatch` (wlname: 'DEFAULT') to populate `_selectedScrips`.
+    - Handle duplicates and fetch initial quotes for valid scrips.
     - When adding a scrip: call `addMultiScripsToMW` then subscribe to WS.
-    - When deleting a scrip: call `deleteMultiMWScrips` then unsubscribe from WS.
+    - When deleting a scrip: call `deleteMultiMWScrips` (waiting for success response), show Feedback SnackBar, then unsubscribe from WS and remove from UI.
 - **Layout Robustness**:
     - Wrap the scrip name in `Expanded` in `_buildScripCard`.
     - **Remove `TextOverflow.ellipsis`** from the symbol name to ensure the full name is visible.
@@ -109,7 +114,44 @@ Clean up the Dashboard UI by removing redundant stats and fixing the search usab
 - **Package Renaming**:
     - Changed `namespace` and `applicationId` to `com.android.herozerotrade` in `build.gradle.kts`.
     - Relocated `MainActivity.kt` to the new package directory structure.
+
+### Correct Strategy Quantity Logic
+- **[MODIFY] [api_service.dart]**:
+    - [x] Correct `prdty` to `prctyp` in `ApiService.placeOrder`
+    - [x] Add `ordersource: 'API'` in `ApiService.placeOrder`
+- **[MODIFY] [strategy_page.dart]**:
+    - [x] Update `StrategyPage._placeOrders` to use `M` (NRML) as product
+    - [x] Ensure correct `exch` (NFO/BFO) and `qty` are passed from `StrategyPage`
+    - [x] **[Implemented] Dynamic Quantity**: Capture `ls` from `GetOptionChain` using resolved strike's `tsym` and spot price. `Qty = UserLots * IndexLotSize`.
+    - [x] Implement robust error reporting in `StrategyPage`
+
 - **Digital Signing**:
     - Generated a release keystore (`upload-keystore.jks`) in `android/app/`.
     - Created `key.properties` to store signing credentials.
     - Updated `build.gradle.kts` to load these properties and use them for the `release` build type.
+
+### [Implemented] Order Confirmation Dialogs
+
+### Goal
+Prevent accidental orders by requiring user confirmation before placing new orders or closing existing positions.
+
+### 1. Reusable Component: `GlassConfirmationDialog`
+- **File**: `lib/widgets/glass_widgets.dart`
+- **Design**:
+    - Extends `Dialog` with a custom `GlassCard` background.
+    - **Header**: "Confirm Order" (with Warning Icon).
+    - **Content**: List of items to confirm (Scrip Name, Type, Price/Market).
+    - **Actions**: "Cancel" (Outlined) and "Confirm" (Neon Button).
+
+### 2. Integration Points
+- **Strategy Page**:
+    - **Trigger**: "INITIATE SEQUENCE" button.
+    - **Data**: List of selected strikes (Symbol, Action: BUY, Price: Market).
+- **Positions Page**:
+    - **Trigger**: "Close" button (Individual)
+        - **Data**: Single scrip (Symbol, Action: SELL/BUY based on net qty, Price: Market)
+    - **Trigger**: "EXIT ALL RUNNING POSITIONS" button (Portfolio)
+        - **Data**: All open positions.
+        - **Improvement**: Checks for empty positions before showing dialog.
+- **Order Book**:
+    - Enhanced visibility of order entry time.

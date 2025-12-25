@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/pnl_service.dart';
+import '../widgets/glass_widgets.dart';
+import 'dart:ui';
 
 class PositionsPage extends StatefulWidget {
   const PositionsPage({super.key});
@@ -21,15 +23,22 @@ class _PositionsPageState extends State<PositionsPage> {
             valueListenable: _pnlService.positions,
             builder: (context, posList, child) {
               if (posList.isEmpty) {
-                return const Center(
-                  child: Text(
-                    'No open positions',
-                    style: TextStyle(color: Colors.blueGrey),
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.inventory_2_outlined, size: 64, color: Colors.blueGrey.withOpacity(0.3)),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'No Active Positions',
+                        style: TextStyle(color: Colors.blueGrey, fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                    ],
                   ),
                 );
               }
               return ListView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                 itemCount: posList.length,
                 itemBuilder: (context, index) {
                   return _buildPositionCard(posList[index]);
@@ -44,52 +53,52 @@ class _PositionsPageState extends State<PositionsPage> {
 
   Widget _buildPnLOverview() {
     return Container(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E293B),
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        color: const Color(0xFF0D0F12),
+        border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
       ),
       child: ValueListenableBuilder<double>(
         valueListenable: _pnlService.totalPnL,
         builder: (context, totalPnL, child) {
-          final pnlColor = totalPnL >= 0 ? Colors.greenAccent : Colors.redAccent;
+          final pnlColor = totalPnL >= 0 ? const Color(0xFF00D97E) : const Color(0xFFFF5F5F);
           return Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildMiniStat('Positions', _pnlService.positions.value.length.toString()),
-                  _buildMiniStat(
-                    'Total M2M', 
-                    '₹${totalPnL.toStringAsFixed(2)}',
-                    valueColor: pnlColor,
-                  ),
-                  _buildMiniStat('Realized', '₹${_calculateTotalRealized().toStringAsFixed(2)}'),
-                ],
+              GlassCard(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+                opacity: 0.05,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildMiniStat('OPEN ROWS', _pnlService.positions.value.length.toString()),
+                    _buildMiniStat(
+                      'TOTAL UNREALIZED', 
+                      '₹${totalPnL.toStringAsFixed(2)}',
+                      valueColor: pnlColor,
+                    ),
+                    _buildMiniStat('REALIZED', '₹${_calculateTotalRealized().toStringAsFixed(2)}'),
+                  ],
+                ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _showConfirmAllDialog(context),
-                  icon: const Icon(Icons.close_fullscreen, size: 18, color: Colors.white),
-                  label: const Text('CLOSE ALL POSITIONS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent.withOpacity(0.8),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                  ),
+                child: NeonButton(
+                  onPressed: () {
+                    if (_pnlService.positions.value.isEmpty) {
+                       ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No Active Positions to Exit'),
+                          backgroundColor: Colors.orangeAccent,
+                        ),
+                      );
+                      return;
+                    }
+                    _showConfirmAllDialog(context);
+                  },
+                  icon: Icons.close_rounded,
+                  label: 'EXIT ALL RUNNING POSITIONS',
+                  color: const Color(0xFFFF5F5F),
                 ),
               ),
             ],
@@ -102,21 +111,25 @@ class _PositionsPageState extends State<PositionsPage> {
   void _showConfirmAllDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Close All Positions?', style: TextStyle(color: Colors.white)),
-        content: const Text('This will place market orders to exit all open positions.', style: TextStyle(color: Colors.blueGrey)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _pnlService.squareOffAll('Manual Close All');
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text('CLOSE ALL', style: TextStyle(color: Colors.white)),
-          ),
+      builder: (context) => GlassConfirmationDialog(
+        title: 'Confirm Portfolio Exit',
+        isDestructive: true,
+        confirmLabel: 'CLOSE ALL',
+        items: const [
+          {'label': 'Action', 'value': 'SQUARE OFF ALL'},
+          {'label': 'Order Type', 'value': 'MARKET'},
         ],
+        onConfirm: () async {
+          final int count = await _pnlService.squareOffAll('Manual Close All');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(count > 0 ? '$count Exit Orders Placed' : 'No Active Positions to Exit'),
+                backgroundColor: count > 0 ? const Color(0xFF00D97E) : Colors.orangeAccent,
+              ),
+            );
+          }
+        },
       ),
     );
   }
@@ -131,15 +144,17 @@ class _PositionsPageState extends State<PositionsPage> {
 
   Widget _buildMiniStat(String label, String value, {Color? valueColor}) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 10)),
-        const SizedBox(height: 4),
+        Text(label.toUpperCase(), style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        const SizedBox(height: 6),
         Text(
           value, 
           style: TextStyle(
             color: valueColor ?? Colors.white, 
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w900,
             fontSize: 14,
+            fontFamily: 'monospace',
           ),
         ),
       ],
@@ -155,16 +170,12 @@ class _PositionsPageState extends State<PositionsPage> {
     
     final double urmtom = netqty * (lp - avg) * prcftr;
     final double totalPnL = rpnl + urmtom;
-    final pnlColor = totalPnL >= 0 ? Colors.greenAccent : Colors.redAccent;
+    final pnlColor = totalPnL >= 0 ? const Color(0xFF00D97E) : const Color(0xFFFF5F5F);
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white10),
-      ),
+    return GlassCard(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(20),
+      opacity: 0.06,
       child: Column(
         children: [
           Row(
@@ -178,66 +189,85 @@ class _PositionsPageState extends State<PositionsPage> {
                       pos['tsym'] ?? 'Unknown',
                       style: const TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        letterSpacing: -0.5,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${pos['exch']} | ${pos['prd']}',
-                      style: const TextStyle(color: Colors.blueGrey, fontSize: 12),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${pos['exch']} | ${pos['prd']}',
+                        style: const TextStyle(color: Colors.blueGrey, fontSize: 10, fontWeight: FontWeight.w800),
+                      ),
                     ),
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    '₹${totalPnL.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: pnlColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: pnlColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '₹${totalPnL.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: pnlColor,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 16,
+                        fontFamily: 'monospace',
+                      ),
                     ),
-                  ),
-                  const Text(
-                    'P&L',
-                    style: TextStyle(color: Colors.blueGrey, fontSize: 10),
-                  ),
-                ],
+                    Text(
+                      'P&L',
+                      style: TextStyle(color: pnlColor.withOpacity(0.5), fontSize: 8, fontWeight: FontWeight.w900, letterSpacing: 1),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
+            padding: EdgeInsets.symmetric(vertical: 16),
             child: Divider(color: Colors.white10, height: 1),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildDataPoint('Qty', netqty.toInt().toString()),
-              _buildDataPoint('Avg', avg.toStringAsFixed(2)),
-              _buildDataPoint('LTP', lp.toStringAsFixed(2), color: Colors.blueAccent),
+              _buildDataPoint('QUANTITY', netqty.toInt().toString()),
+              _buildDataPoint('AVG PRICE', '₹${avg.toStringAsFixed(2)}'),
+              _buildDataPoint('PRICE NOW', '₹${lp.toStringAsFixed(2)}', color: const Color(0xFF4D96FF)),
             ],
           ),
           if (netqty != 0) ...[
-            const Padding(
-              padding: EdgeInsets.only(top: 16),
-              child: Divider(color: Colors.white10, height: 1),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => _showConfirmSingleDialog(context, pos),
-                style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.redAccent, width: 1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
+              child: GestureDetector(
+                onTap: () => _showConfirmSingleDialog(context, pos),
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF5F5F).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFF5F5F).withOpacity(0.2)),
+                  ),
+                  child: const Text(
+                    'EXIT POSITION', 
+                    style: TextStyle(color: Color(0xFFFF5F5F), fontSize: 11, fontWeight: FontWeight.w900, letterSpacing: 1),
+                  ),
                 ),
-                child: const Text('CLOSE POSITION', style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold)),
               ),
             ),
           ],
@@ -247,23 +277,33 @@ class _PositionsPageState extends State<PositionsPage> {
   }
 
   void _showConfirmSingleDialog(BuildContext context, Map<String, dynamic> position) {
+    final double netqty = double.tryParse(position['netqty']?.toString() ?? '0') ?? 0.0;
+    final String action = netqty > 0 ? 'SELL' : 'BUY';
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: Text('Close ${position['tsym']}?', style: const TextStyle(color: Colors.white)),
-        content: const Text('This will place a market order to exit this position.', style: TextStyle(color: Colors.blueGrey)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('CANCEL')),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _pnlService.squareOffSingle(position);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text('CLOSE', style: TextStyle(color: Colors.white)),
-          ),
+      builder: (context) => GlassConfirmationDialog(
+        title: 'Confirm Square Off',
+        isDestructive: true,
+        confirmLabel: 'CLOSE POSITION',
+        items: [
+          {'label': 'Scrip', 'value': position['tsym'] ?? ''},
+          {'label': 'Action', 'value': action},
+          {'label': 'Quantity', 'value': netqty.abs().toInt().toString()},
+          {'label': 'Order Type', 'value': 'MARKET'},
         ],
+        onConfirm: () async {
+          final result = await _pnlService.squareOffSingle(position);
+          if (mounted) {
+            final bool isSuccess = result['stat'] == 'Ok';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(isSuccess ? 'Exit Order Placed' : 'Order Failed: ${result['emsg']}'),
+                backgroundColor: isSuccess ? const Color(0xFF00D97E) : const Color(0xFFFF5F5F),
+              ),
+            );
+          }
+        },
       ),
     );
   }
@@ -272,14 +312,15 @@ class _PositionsPageState extends State<PositionsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(color: Colors.blueGrey, fontSize: 10)),
-        const SizedBox(height: 4),
+        Text(label.toUpperCase(), style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 1)),
+        const SizedBox(height: 6),
         Text(
           value,
           style: TextStyle(
-            color: color ?? Colors.white70,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+            color: color ?? Colors.white.withOpacity(0.8),
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            fontFamily: 'monospace',
           ),
         ),
       ],
