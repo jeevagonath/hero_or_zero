@@ -1,12 +1,34 @@
 import 'package:flutter/material.dart';
 import 'screens/login_page.dart';
+import 'screens/main_screen.dart';
+import 'services/api_service.dart';
+import 'services/storage_service.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  final apiService = ApiService();
+  final storageService = StorageService();
+  
+  await apiService.initToken();
+  final String? uid = await storageService.getUid();
+  final String? token = apiService.userToken;
+
+  Map<String, dynamic>? userData;
+  if (token != null && uid != null) {
+    final response = await apiService.getUserDetails(userId: uid);
+    if (response['stat'] == 'Ok') {
+      userData = response;
+    }
+  }
+
+  runApp(MyApp(initialUserData: userData));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final Map<String, dynamic>? initialUserData;
+  
+  const MyApp({super.key, this.initialUserData});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +42,9 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      home: const LoginPage(),
+      home: initialUserData != null 
+          ? MainScreen(userData: initialUserData!) 
+          : const LoginPage(),
     );
   }
 }

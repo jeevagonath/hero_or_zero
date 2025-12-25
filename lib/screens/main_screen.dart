@@ -24,7 +24,7 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _pages = [
-      const DashboardPlaceholderPage(),
+      DashboardPlaceholderPage(userData: widget.userData),
       const StrategyPage(),
       const PositionsPage(),
       const OrderBookPage(),
