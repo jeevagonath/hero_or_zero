@@ -1,0 +1,63 @@
+# Task: Research Shoonya API Documentation
+
+- [x] Research Shoonya API documentation <!-- id: 0 -->
+    - [x] Visit https://shoonya.com/api-documentation and extract key information <!-- id: 1 -->
+    - [x] Document authentication flow <!-- id: 2 -->
+    - [x] Document core endpoints (Order placement, P&L, Market Data) <!-- id: 3 -->
+- [x] Review existing implementation in `api_service.dart` <!-- id: 4 -->
+- [x] Align documentation with project needs <!-- id: 5 -->
+    - [x] Extend ApiService with missing endpoints <!-- id: 6 -->
+    - [x] Implement WebSocket service for live data <!-- id: 7 -->
+- [x] Fix local storage `usertoken` persistence <!-- id: 8 -->
+- [x] Implement Dashboard with live NIFTY 50 and SENSEX data <!-- id: 9 -->
+    - [x] Update `main.dart` for auto-login <!-- id: 10 -->
+    - [x] Update Dashboard to use WebSocket for live index prices <!-- id: 11 -->
+    - [x] Refine price change calculation (LTP - Open) <!-- id: 12 -->
+- [x] Ensure robust WebSocket connectivity <!-- id: 13 -->
+    - [x] Implement auto-reconnect in `WebSocketService` <!-- id: 14 -->
+    - [x] Add heartbeat/ping logic <!-- id: 15 -->
+    - [x] Handle re-subscription on reconnect <!-- id: 16 -->
+- [x] Implement Scrip Search on Dashboard <!-- id: 17 -->
+    - [x] Add search text field and floating results <!-- id: 18 -->
+    - [x] Handle scrip selection and storage <!-- id: 19 -->
+    - [x] Integrate selected scrip with WebSocket for live updates <!-- id: 20 -->
+    - [x] Display selected scrip card with live price <!-- id: 21 -->
+- [x] Implement Automated Trading Strategy <!-- id: 22 -->
+    - [x] Create Settings page for configuration <!-- id: 23 -->
+    - [x] Implement spot price capture at 1:15 PM <!-- id: 24 -->
+    - [x] Implement strike selection logic (NIFTY/SENSEX) <!-- id: 25 -->
+    - [x] Add checkboxes for user selection <!-- id: 26 -->
+    - [x] Implement "Place Order" (Market Buy) through API <!-- id: 27 -->
+    - [x] Add persistence for strategy state and settings <!-- id: 28 -->
+- [x] Integrate Live Prices for Strategy Strikes <!-- id: 29 -->
+    - [x] Implement contract search for NIFTY/SENSEX options <!-- id: 30 -->
+    - [x] Subscribe strategy strikes to `WebSocketService` <!-- id: 31 -->
+    - [x] Update UI with real-time LTP for each strike <!-- id: 32 -->
+    - [x] Handle unsubscription and cleanup <!-- id: 33 -->
+- [x] Add configurable Test Capture button <!-- id: 34 -->
+    - [x] Persist preference in `StorageService` <!-- id: 35 -->
+    - [x] Add toggle in `SettingsPage` <!-- id: 36 -->
+    - [x] Conditionally show button in `StrategyPage` <!-- id: 37 -->
+- [x] Implement User Logout <!-- id: 38 -->
+    - [x] Add logout method to `ApiService` <!-- id: 39 -->
+    - [x] Add logout button to `UserDetailsPage` <!-- id: 40 -->
+    - [x] Handle navigation to `LoginPage` after logout <!-- id: 41 -->
+- [x] Implement Persistent Developer Settings on Login <!-- id: 42 -->
+    - [x] Update `StorageService` to persist API config (Vendor, IMEI, API Key) <!-- id: 43 -->
+    - [x] Create `DeveloperSettingsPage` UI <!-- id: 44 -->
+    - [x] Add settings icon to `LoginPage` and integrate storage config <!-- id: 45 -->
+    - [x] Update `main.dart` with new route <!-- id: 46 -->
+- [x] Implement Positions Page and Global P&L <!-- id: 47 -->
+    - [x] Update `ApiService.getPositionBook` with `actid` <!-- id: 48 -->
+    - [x] Create `PnLService` for live P&L tracking <!-- id: 49 -->
+    - [x] Add global P&L header in `MainScreen` <!-- id: 50 -->
+    - [x] Build `PositionsPage` UI with live updates <!-- id: 51 -->
+    - [x] Integrate WebSocket for position LTP updates <!-- id: 52 -->
+- [x] Implement Order Book Page <!-- id: 53 -->
+    - [x] Update `ApiService.getOrderBook` if needed <!-- id: 54 -->
+    - [x] Build `OrderBookPage` UI <!-- id: 55 -->
+    - [x] Add filtering and status color coding <!-- id: 56 -->
+- [x] Implement Trade Book Page <!-- id: 57 -->
+    - [x] Update `ApiService.getTradeBook` with `actid` <!-- id: 58 -->
+    - [x] Build `TradeBookPage` UI <!-- id: 59 -->
+    - [x] Handle "no data" case for trade book <!-- id: 60 -->
