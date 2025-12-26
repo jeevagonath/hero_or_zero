@@ -4,6 +4,8 @@ import 'api_service.dart';
 import 'websocket_service.dart';
 import 'storage_service.dart';
 
+import 'storage_service.dart';
+
 class PnLService {
   static final PnLService _instance = PnLService._internal();
   factory PnLService() => _instance;
@@ -181,10 +183,52 @@ class PnLService {
       final String exitT = portfolioExitStatus.value['exitTime'] ?? '15:00';
       
       if (currentHhMm == exitT) {
-        squareOffAll('Time-Based Exit ($exitT)');
+        _performTimeBasedExit(exitT);
       }
       fetchPositions();
     });
+  }
+
+  Future<void> _performTimeBasedExit(String exitTime) async {
+      print('PnLService: 3 PM Time-Based Exit Triggered ($exitTime)');
+
+      // 1. Cancel Open Orders first
+      await cancelAllOpenOrders();
+      // 2. Square off all positions
+      await squareOffAll('Time-Based Exit ($exitTime)');
+  }
+
+  Future<void> cancelAllOpenOrders() async {
+    final String? uid = _apiService.userId ?? await _storageService.getUid();
+    if (uid == null) return;
+
+    print('PnLService: Cancelling ALL OPEN ORDERS...');
+    try {
+      final result = await _apiService.getOrderBook(userId: uid);
+      if (result['stat'] == 'Ok' && result['orders'] != null) {
+        final List<dynamic> orders = result['orders'];
+        final openOrders = orders.where((o) {
+           final status = o['status']?.toString().toLowerCase() ?? '';
+           return status.contains('open') || status.contains('pending') || status.contains('trigger');
+        }).toList();
+
+        if (openOrders.isEmpty) {
+          print('PnLService: No open orders to cancel.');
+          return;
+        }
+
+        for (var order in openOrders) {
+           final String ordNo = order['norenordno'] ?? '';
+           if (ordNo.isNotEmpty) {
+             print('PnLService: Cancelling Order $ordNo');
+             await _apiService.cancelOrder(userId: uid, norenordno: ordNo);
+           }
+        }
+        print('PnLService: Cancelled ${openOrders.length} orders.');
+      }
+    } catch (e) {
+      print('PnLService: Error cancelling open orders: $e');
+    }
   }
 
   Future<void> refreshSettings() async {
@@ -235,6 +279,10 @@ class PnLService {
     status['peakProfit'] = 0.0;
     status['tsl'] = -999999.0;
     portfolioExitStatus.value = status;
+
+    if (ordersPlaced > 0) {
+      print('Squared off $ordersPlaced positions. Reason: $reason');
+    }
 
     await fetchPositions();
     return ordersPlaced;

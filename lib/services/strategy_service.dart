@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'api_service.dart';
 import 'storage_service.dart';
 import 'websocket_service.dart';
+import 'exit_strategy_service.dart';
 import 'pnl_service.dart';
 
 class StrategyService {
@@ -18,6 +19,7 @@ class StrategyService {
   final ApiService _apiService = ApiService();
   final StorageService _storageService = StorageService();
   final WebSocketService _wsService = WebSocketService();
+  final ExitStrategyService _exitStrategyService = ExitStrategyService(); // Init service
 
   // State
   final ValueNotifier<String> currentTime = ValueNotifier<String>('');
@@ -41,6 +43,8 @@ class StrategyService {
 
   Future<void> init() async {
     await _loadSettingsAndRestore();
+    // Start Exit Monitor
+    await _exitStrategyService.init();
   }
 
   /// Public method to reload settings from storage (e.g. after SettingsPage save)

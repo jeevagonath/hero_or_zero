@@ -139,6 +139,75 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> modifyOrder({
+    required String userId,
+    required String norenordno,
+    required String exchange,
+    required String tradingSymbol,
+    required String quantity,
+    required String price,
+    required String orderType, // 'LMT', 'MKT', 'SL-LMT', 'SL-MKT'
+    required String productType,
+    String? triggerPrice,
+  }) async {
+    final Map<String, dynamic> jData = {
+      'uid': userId,
+      'norenordno': norenordno,
+      'exch': exchange,
+      'tsym': tradingSymbol,
+      'qty': quantity,
+      'prc': price,
+      'prctyp': orderType,
+      'prd': productType, // Recommended to send product type even if implied
+    };
+
+    if (triggerPrice != null) {
+      jData['trgprc'] = triggerPrice;
+    }
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/NorenWClientTP/ModifyOrder'),
+        body: 'jData=${jsonEncode(jData)}&jKey=${_userToken ?? ''}',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'stat': 'Not_Ok', 'emsg': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> cancelOrder({
+    required String userId,
+    required String norenordno,
+  }) async {
+    final Map<String, dynamic> jData = {
+      'uid': userId,
+      'norenordno': norenordno,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/NorenWClientTP/CancelOrder'),
+        body: 'jData=${jsonEncode(jData)}&jKey=${_userToken ?? ''}',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'stat': 'Not_Ok', 'emsg': e.toString()};
+    }
+  }
+
   Future<Map<String, dynamic>> placeOrder({
     required String userId,
     required String exchange,

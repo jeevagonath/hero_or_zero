@@ -144,10 +144,57 @@ class _OrderBookPageState extends State<OrderBookPage> {
     );
   }
 
+  Future<void> _cancelOrder(String norenordno) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF161B22),
+        title: const Text('Cancel Order?', style: TextStyle(color: Colors.white)),
+        content: const Text('Are you sure you want to cancel this order?', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('NO', style: TextStyle(color: Colors.blueGrey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('YES, CANCEL', style: TextStyle(color: Color(0xFFFF5F5F))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    final String? uid = _apiService.userId;
+    if (uid == null) return;
+
+    setState(() => _isLoading = true);
+
+    final result = await _apiService.cancelOrder(userId: uid, norenordno: norenordno);
+    
+    if (mounted) {
+      if (result['stat'] == 'Ok') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Order Cancelled Successfully')),
+        );
+        _fetchOrders(); // Refresh list
+      } else {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to cancel: ${result['emsg'] ?? 'Unknown error'}'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
   Widget _buildOrderCard(Map<String, dynamic> order) {
     final statusColor = _getStatusColor(order['status']);
     final isBuy = order['trantype'] == 'B';
     final typeColor = isBuy ? const Color(0xFF00D97E) : const Color(0xFFFF5F5F);
+    
+    final s = order['status']?.toString().toLowerCase() ?? '';
+    final bool isCancellable = s.contains('open') || s.contains('pending') || s.contains('trigger');
 
     return GlassCard(
       margin: const EdgeInsets.only(bottom: 16),
@@ -257,6 +304,25 @@ class _OrderBookPageState extends State<OrderBookPage> {
                       ),
                    ),
                 ],
+              ),
+            ),
+          ],
+          if (isCancellable) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 36,
+              child: ElevatedButton.icon(
+                onPressed: () => _cancelOrder(order['norenordno'] ?? ''),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFFF5F5F).withOpacity(0.1),
+                  foregroundColor: const Color(0xFFFF5F5F),
+                  elevation: 0,
+                  side: BorderSide(color: const Color(0xFFFF5F5F).withOpacity(0.3)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: const Icon(Icons.cancel_outlined, size: 16),
+                label: const Text('CANCEL ORDER', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 1)),
               ),
             ),
           ],

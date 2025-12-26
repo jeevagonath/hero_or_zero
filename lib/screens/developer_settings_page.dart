@@ -16,6 +16,14 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
   final TextEditingController _vendorController = TextEditingController();
   final TextEditingController _apiKeyController = TextEditingController();
   final TextEditingController _imeiController = TextEditingController();
+  final TextEditingController _exitBufferController = TextEditingController(); 
+  
+  // Trailing Config Controllers
+  final TextEditingController _niftyStepController = TextEditingController();
+  final TextEditingController _niftyIncController = TextEditingController();
+  final TextEditingController _sensexStepController = TextEditingController();
+  final TextEditingController _sensexIncController = TextEditingController();
+
   bool _isLoading = true;
 
   @override
@@ -26,12 +34,24 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
 
   Future<void> _loadConfig() async {
     final config = await _storageService.getDevConfig();
-    setState(() {
-      _vendorController.text = config['vendorCode'] ?? '';
-      _apiKeyController.text = config['apiKey'] ?? '';
-      _imeiController.text = config['imei'] ?? '';
-      _isLoading = false;
-    });
+    final strategySettings = await _storageService.getStrategySettings();
+    
+    if (mounted) {
+      setState(() {
+        _vendorController.text = config['vendorCode'] ?? '';
+        _apiKeyController.text = config['apiKey'] ?? '';
+        _imeiController.text = config['imei'] ?? '';
+        
+        // Load strategy settings for buffer
+        _exitBufferController.text = (strategySettings['exitTriggerBuffer'] ?? 0.5).toString();
+        _niftyStepController.text = (strategySettings['niftyTrailingStep'] ?? 10.0).toString();
+        _niftyIncController.text = (strategySettings['niftyTrailingIncrement'] ?? 8.0).toString();
+        _sensexStepController.text = (strategySettings['sensexTrailingStep'] ?? 20.0).toString();
+        _sensexIncController.text = (strategySettings['sensexTrailingIncrement'] ?? 15.0).toString();
+
+        _isLoading = false;
+      });
+    }
   }
 
   Future<void> _saveConfig() async {
@@ -40,6 +60,24 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
       apiKey: _apiKeyController.text.trim(),
       imei: _imeiController.text.trim(),
     );
+
+    // Save Buffer - We need to preserve other strategy settings
+    final currentStrat = await _storageService.getStrategySettings();
+    await _storageService.saveStrategySettings(
+      niftyDay: currentStrat['niftyDay'],
+      sensexDay: currentStrat['sensexDay'],
+      niftyLotSize: currentStrat['niftyLotSize'],
+      sensexLotSize: currentStrat['sensexLotSize'],
+      showTestButton: currentStrat['showTestButton'],
+      strategyTime: currentStrat['strategyTime'], 
+      exitTime: currentStrat['exitTime'],
+      exitTriggerBuffer: double.tryParse(_exitBufferController.text) ?? 0.5,
+      niftyTrailingStep: double.tryParse(_niftyStepController.text) ?? 10.0,
+      niftyTrailingIncrement: double.tryParse(_niftyIncController.text) ?? 8.0,
+      sensexTrailingStep: double.tryParse(_sensexStepController.text) ?? 20.0,
+      sensexTrailingIncrement: double.tryParse(_sensexIncController.text) ?? 15.0,
+    );
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Shoonya API settings saved')),
@@ -53,7 +91,7 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
     return Scaffold(
       backgroundColor: const Color(0xFF0D0F12),
       appBar: AppBar(
-        title: const Text('DEVELOPER CONFIG', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
+        title: const Text('SHOONYA API CONFIG', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1, fontSize: 16)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -102,7 +140,29 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
                   _buildTextField('API KEY', _apiKeyController, icon: Icons.vpn_key_rounded),
                   const SizedBox(height: 24),
                   _buildTextField('IMEI', _imeiController, icon: Icons.phone_android_rounded),
-                  const SizedBox(height: 48),
+
+                  const SizedBox(height: 24),
+                  _buildTextField('EXIT TRIGGER BUFFER', _exitBufferController, icon: Icons.tune_rounded),
+                  const SizedBox(height: 32),
+                  const Text('TRAILING SETTINGS', style: TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: _buildTextField('NIFTY STEP', _niftyStepController, icon: Icons.trending_up_rounded)),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildTextField('NIFTY INC', _niftyIncController, icon: Icons.add_rounded)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: _buildTextField('SENSEX STEP', _sensexStepController, icon: Icons.trending_up_rounded)),
+                      const SizedBox(width: 16),
+                      Expanded(child: _buildTextField('SENSEX INC', _sensexIncController, icon: Icons.add_rounded)),
+                    ],
+                  ),
+
+                  const SizedBox(height: 32),
                   NeonButton(
                     onPressed: _saveConfig,
                     label: 'SAVE CONFIGURATION',

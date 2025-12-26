@@ -63,6 +63,7 @@ class NeonButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;
   final Color color;
+  final Color? textColor;
   final IconData? icon;
   final bool isLoading;
   final double fontSize;
@@ -72,6 +73,7 @@ class NeonButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.color = const Color(0xFF4D96FF),
+    this.textColor,
     this.icon,
     this.isLoading = false,
     this.fontSize = 16.0,
@@ -93,7 +95,7 @@ class NeonButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
-          foregroundColor: Colors.white,
+          foregroundColor: textColor ?? Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 0,

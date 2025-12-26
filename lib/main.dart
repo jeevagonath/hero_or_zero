@@ -13,48 +13,85 @@ import 'package:google_fonts/google_fonts.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  final apiService = ApiService();
-  final storageService = StorageService();
-  final strategyService = StrategyService();
-  final pnlService = PnLService();
-  
-  await apiService.initToken();
-  await strategyService.init(); // Load strategy state
-  final String? uid = await storageService.getUid();
-  final String? token = apiService.userToken;
-  
-  // SESSION EXPIRY CHECK
-  final String? lastLoginDate = await storageService.getLastLoginDate();
-  final String today = DateTime.now().toString().split(' ')[0];
-
   Map<String, dynamic>? userData;
-  
-  if (token != null && uid != null) {
-    if (lastLoginDate != today) {
-       print('Session Expired: Last login $lastLoginDate, Today $today. Clearing session.');
-       await storageService.clearAll();
-       apiService.clearSession(); 
-       userData = null;
-    } else {
-      final response = await apiService.getUserDetails(userId: uid);
-      if (response['stat'] == 'Ok') {
-        userData = response;
+  String? errorMessage;
+
+  try {
+    final apiService = ApiService();
+    final storageService = StorageService();
+    final strategyService = StrategyService();
+    
+    await apiService.initToken();
+    await strategyService.init(); 
+    
+    final String? uid = await storageService.getUid();
+    final String? token = apiService.userToken;
+    
+    // SESSION EXPIRY CHECK
+    final String? lastLoginDate = await storageService.getLastLoginDate();
+    final String today = DateTime.now().toString().split(' ')[0];
+
+    if (token != null && uid != null) {
+      if (lastLoginDate != today) {
+         print('Session Expired: Last login $lastLoginDate, Today $today. Clearing session.');
+         await storageService.clearAll();
+         apiService.clearSession(); 
+         userData = null;
+      } else {
+        try {
+          // Add timeout to prevent indefinite hanging
+          final response = await apiService.getUserDetails(userId: uid).timeout(const Duration(seconds: 10));
+          if (response['stat'] == 'Ok') {
+            userData = response;
+          }
+        } catch (e) {
+          print('Network/API Error fetching user details: $e');
+          // Don't crash, just proceed to login
+        }
       }
     }
+  } catch (e, stack) {
+    print('Initialization Error: $e\n$stack');
+    errorMessage = e.toString();
   }
 
-  runApp(MyApp(initialUserData: userData));
+  runApp(MyApp(initialUserData: userData, errorMessage: errorMessage));
 }
 
 class MyApp extends StatelessWidget {
   final Map<String, dynamic>? initialUserData;
+  final String? errorMessage;
   
-  const MyApp({super.key, this.initialUserData});
+  const MyApp({super.key, this.initialUserData, this.errorMessage});
 
   @override
   Widget build(BuildContext context) {
+    if (errorMessage != null) {
+       return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                  const SizedBox(height: 16),
+                  const Text('Initialization Failed', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Text(errorMessage!, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
+                ],
+              ),
+            ),
+          ),
+        ),
+       );
+    }
+
     return MaterialApp(
-      title: 'Hero or Zero',
+      title: 'HeroZero Trade',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

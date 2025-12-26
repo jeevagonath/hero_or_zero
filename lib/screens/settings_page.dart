@@ -47,6 +47,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _saveSettings() async {
+    // Preserve existing values for keys not managed by this page
+    final currentSettings = await _storageService.getStrategySettings();
+    
     await _storageService.saveStrategySettings(
       niftyDay: _niftyDay,
       sensexDay: _sensexDay,
@@ -55,6 +58,12 @@ class _SettingsPageState extends State<SettingsPage> {
       showTestButton: _showTestButton,
       strategyTime: _strategyTime,
       exitTime: _exitTime,
+      // Pass preserved values for trailing settings
+      exitTriggerBuffer: currentSettings['exitTriggerBuffer'] ?? 0.5,
+      niftyTrailingStep: currentSettings['niftyTrailingStep'] ?? 10.0,
+      niftyTrailingIncrement: currentSettings['niftyTrailingIncrement'] ?? 8.0,
+      sensexTrailingStep: currentSettings['sensexTrailingStep'] ?? 20.0,
+      sensexTrailingIncrement: currentSettings['sensexTrailingIncrement'] ?? 15.0,
     );
     
     // Notify StrategyService and PnLService to reload new settings

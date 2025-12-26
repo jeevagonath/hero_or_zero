@@ -14,6 +14,11 @@ class StorageService {
   static const String _keyImei = 'dev_imei';
   static const String _keyStrategyTime = 'strategy_time';
   static const String _keyExitTime = 'exit_time';
+  static const String _keyExitTriggerBuffer = 'exit_trigger_buffer';
+  static const String _keyNiftyTrailingStep = 'nifty_trailing_step';
+  static const String _keyNiftyTrailingIncrement = 'nifty_trailing_increment';
+  static const String _keySensexTrailingStep = 'sensex_trailing_step';
+  static const String _keySensexTrailingIncrement = 'sensex_trailing_increment';
   static const String _keyLoginDate = 'last_login_date';
 
   Future<void> saveUserToken(String token) async {
@@ -96,9 +101,14 @@ class StorageService {
     required String sensexDay,
     required int niftyLotSize,
     required int sensexLotSize,
-    required bool showTestButton,
     required String strategyTime,
     required String exitTime,
+    required double exitTriggerBuffer,
+    required double niftyTrailingStep,
+    required double niftyTrailingIncrement,
+    required double sensexTrailingStep,
+    required double sensexTrailingIncrement,
+    required bool showTestButton,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_keyNiftyDay, niftyDay);
@@ -108,6 +118,11 @@ class StorageService {
     await prefs.setBool(_keyShowTestButton, showTestButton);
     await prefs.setString(_keyStrategyTime, strategyTime);
     await prefs.setString(_keyExitTime, exitTime);
+    await prefs.setDouble(_keyExitTriggerBuffer, exitTriggerBuffer);
+    await prefs.setDouble(_keyNiftyTrailingStep, niftyTrailingStep);
+    await prefs.setDouble(_keyNiftyTrailingIncrement, niftyTrailingIncrement);
+    await prefs.setDouble(_keySensexTrailingStep, sensexTrailingStep);
+    await prefs.setDouble(_keySensexTrailingIncrement, sensexTrailingIncrement);
   }
 
   Future<Map<String, dynamic>> getStrategySettings() async {
@@ -120,6 +135,11 @@ class StorageService {
       'showTestButton': prefs.getBool(_keyShowTestButton) ?? true,
       'strategyTime': prefs.getString(_keyStrategyTime) ?? '13:15',
       'exitTime': prefs.getString(_keyExitTime) ?? '15:00',
+      'exitTriggerBuffer': prefs.getDouble(_keyExitTriggerBuffer) ?? 0.5,
+      'niftyTrailingStep': prefs.getDouble(_keyNiftyTrailingStep) ?? 10.0,
+      'niftyTrailingIncrement': prefs.getDouble(_keyNiftyTrailingIncrement) ?? 8.0,
+      'sensexTrailingStep': prefs.getDouble(_keySensexTrailingStep) ?? 20.0,
+      'sensexTrailingIncrement': prefs.getDouble(_keySensexTrailingIncrement) ?? 15.0,
     };
   }
   // Daily Strategy Capture (Persistence)
