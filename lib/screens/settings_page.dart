@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/storage_service.dart';
 import '../services/strategy_service.dart';
+import '../services/strategy_930_service.dart';
 import '../services/pnl_service.dart';
 import '../widgets/glass_widgets.dart';
 
@@ -15,11 +16,14 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   final StorageService _storageService = StorageService();
   final StrategyService _strategyService = StrategyService();
+  final Strategy930Service _strategy930Service = Strategy930Service();
   final List<String> _days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   
   String _niftyDay = 'Tuesday';
   String _sensexDay = 'Thursday';
   String _strategyTime = '13:15';
+  String _strategy930CaptureTime = '09:25';
+  String _strategy930FetchTime = '09:30';
   String _exitTime = '15:00';
   final TextEditingController _niftyLotController = TextEditingController();
   final TextEditingController _sensexLotController = TextEditingController();
@@ -41,6 +45,8 @@ class _SettingsPageState extends State<SettingsPage> {
       _sensexLotController.text = settings['sensexLotSize'].toString();
       _showTestButton = settings['showTestButton'];
       _strategyTime = settings['strategyTime'];
+      _strategy930CaptureTime = settings['strategy930CaptureTime'] ?? '09:25';
+      _strategy930FetchTime = settings['strategy930FetchTime'] ?? '09:30';
       _exitTime = settings['exitTime'] ?? '15:00';
       _isLoading = false;
     });
@@ -57,6 +63,8 @@ class _SettingsPageState extends State<SettingsPage> {
       sensexLotSize: int.tryParse(_sensexLotController.text) ?? 10,
       showTestButton: _showTestButton,
       strategyTime: _strategyTime,
+      strategy930CaptureTime: _strategy930CaptureTime,
+      strategy930FetchTime: _strategy930FetchTime,
       exitTime: _exitTime,
       // Pass preserved values for trailing settings
       exitTriggerBuffer: currentSettings['exitTriggerBuffer'] ?? 0.5,
@@ -68,6 +76,7 @@ class _SettingsPageState extends State<SettingsPage> {
     
     // Notify StrategyService and PnLService to reload new settings
     await _strategyService.refreshSettings();
+    await _strategy930Service.refreshSettings();
     await PnLService().refreshSettings();
 
     if (mounted) {
@@ -138,6 +147,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     child: Column(
                       children: [
                         _buildTimePickerRow('Strategy Trigger Time', _strategyTime, (val) => setState(() => _strategyTime = val)),
+                        const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Colors.white10)),
+                        _buildTimePickerRow('9:30 Strategy Capture Time', _strategy930CaptureTime, (val) => setState(() => _strategy930CaptureTime = val)),
+                        const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Colors.white10)),
+                        _buildTimePickerRow('9:30 Strategy Fetch Time', _strategy930FetchTime, (val) => setState(() => _strategy930FetchTime = val)),
                         const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Colors.white10)),
                         _buildTimePickerRow('Daily Exit Time (Hard Stop)', _exitTime, (val) => setState(() => _exitTime = val)),
                         const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: Colors.white10)),

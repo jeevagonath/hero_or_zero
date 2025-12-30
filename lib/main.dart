@@ -4,14 +4,18 @@ import 'screens/main_screen.dart';
 import 'services/api_service.dart';
 import 'services/storage_service.dart';
 import 'services/strategy_service.dart';
+import 'services/strategy_930_service.dart';
 import 'services/pnl_service.dart';
 import 'screens/settings_page.dart';
 import 'screens/developer_settings_page.dart';
 
 import 'package:google_fonts/google_fonts.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Keep screen on for background timers
+  WakelockPlus.enable();
   
   Map<String, dynamic>? userData;
   String? errorMessage;
@@ -20,6 +24,8 @@ void main() async {
     final apiService = ApiService();
     final storageService = StorageService();
     final strategyService = StrategyService();
+    // Initialize 9:30 Strategy Service
+    Strategy930Service(); 
     
     await apiService.initToken();
     await strategyService.init(); 

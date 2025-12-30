@@ -7,6 +7,7 @@ import '../widgets/glass_widgets.dart';
 import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'dart:ui';
 import 'chart_page.dart';
+import 'strategy_930_page.dart';
 
 class DashboardPlaceholderPage extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -377,7 +378,9 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
                   _buildErrorState()
                 else ...[
                   _buildIndexCards(),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
+                  _buildStrategyShortcuts(),
+                  const SizedBox(height: 16),
                   _buildSearchBox(),
                   if (_searchResults.isNotEmpty) _buildSearchResultsList(),
                   const SizedBox(height: 32),
@@ -795,6 +798,54 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildStrategyShortcuts() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(context, MaterialPageRoute(builder: (_) => const Strategy930Page()));
+      },
+      child: GlassCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        opacity: 0.1,
+        borderRadius: BorderRadius.circular(12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4D96FF).withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.flash_on, color: Color(0xFF4D96FF), size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '9:30 AM Strategy',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+                Text(
+                  'Auto-Strike Selection',
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 14),
+          ],
+        ),
       ),
     );
   }

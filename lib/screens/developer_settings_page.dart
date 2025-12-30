@@ -70,6 +70,8 @@ class _DeveloperSettingsPageState extends State<DeveloperSettingsPage> {
       sensexLotSize: currentStrat['sensexLotSize'],
       showTestButton: currentStrat['showTestButton'],
       strategyTime: currentStrat['strategyTime'], 
+      strategy930CaptureTime: currentStrat['strategy930CaptureTime'] ?? '09:25',
+      strategy930FetchTime: currentStrat['strategy930FetchTime'] ?? '09:30',
       exitTime: currentStrat['exitTime'],
       exitTriggerBuffer: double.tryParse(_exitBufferController.text) ?? 0.5,
       niftyTrailingStep: double.tryParse(_niftyStepController.text) ?? 10.0,

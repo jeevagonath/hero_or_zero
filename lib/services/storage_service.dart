@@ -13,6 +13,8 @@ class StorageService {
   static const String _keyApiKey = 'dev_api_key';
   static const String _keyImei = 'dev_imei';
   static const String _keyStrategyTime = 'strategy_time';
+  static const String _keyStrategy930CaptureTime = 'strategy_930_capture_time';
+  static const String _keyStrategy930FetchTime = 'strategy_930_fetch_time';
   static const String _keyExitTime = 'exit_time';
   static const String _keyExitTriggerBuffer = 'exit_trigger_buffer';
   static const String _keyNiftyTrailingStep = 'nifty_trailing_step';
@@ -102,6 +104,8 @@ class StorageService {
     required int niftyLotSize,
     required int sensexLotSize,
     required String strategyTime,
+    required String strategy930CaptureTime,
+    required String strategy930FetchTime,
     required String exitTime,
     required double exitTriggerBuffer,
     required double niftyTrailingStep,
@@ -117,6 +121,8 @@ class StorageService {
     await prefs.setInt(_keySensexLotSize, sensexLotSize);
     await prefs.setBool(_keyShowTestButton, showTestButton);
     await prefs.setString(_keyStrategyTime, strategyTime);
+    await prefs.setString(_keyStrategy930CaptureTime, strategy930CaptureTime);
+    await prefs.setString(_keyStrategy930FetchTime, strategy930FetchTime);
     await prefs.setString(_keyExitTime, exitTime);
     await prefs.setDouble(_keyExitTriggerBuffer, exitTriggerBuffer);
     await prefs.setDouble(_keyNiftyTrailingStep, niftyTrailingStep);
@@ -134,6 +140,8 @@ class StorageService {
       'sensexLotSize': prefs.getInt(_keySensexLotSize) ?? 10, // SENSEX Default
       'showTestButton': prefs.getBool(_keyShowTestButton) ?? true,
       'strategyTime': prefs.getString(_keyStrategyTime) ?? '13:15',
+      'strategy930CaptureTime': prefs.getString(_keyStrategy930CaptureTime) ?? '09:25',
+      'strategy930FetchTime': prefs.getString(_keyStrategy930FetchTime) ?? '09:30',
       'exitTime': prefs.getString(_keyExitTime) ?? '15:00',
       'exitTriggerBuffer': prefs.getDouble(_keyExitTriggerBuffer) ?? 0.5,
       'niftyTrailingStep': prefs.getDouble(_keyNiftyTrailingStep) ?? 10.0,
@@ -158,5 +166,23 @@ class StorageService {
   Future<void> clearDailyCapture() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('daily_strategy_capture');
+  }
+
+  // Strategy 930 Persistence
+  Future<void> saveStrategy930Data(Map<String, dynamic> data) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('strategy_930_data', jsonEncode(data));
+  }
+
+  Future<Map<String, dynamic>?> getStrategy930Data() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? data = prefs.getString('strategy_930_data');
+    if (data == null) return null;
+    return jsonDecode(data);
+  }
+
+  Future<void> clearStrategy930Data() async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('strategy_930_data');
   }
 }

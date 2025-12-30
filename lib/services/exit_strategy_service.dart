@@ -14,10 +14,67 @@ class ExitStrategyService {
   final StorageService _storageService = StorageService();
   final PnLService _pnlService = PnLService();
 
+  Future<void> _syncStateWithOpenOrders() async {
+    try {
+       final String? uid = await _storageService.getUid();
+       if (uid == null) return;
+
+       final result = await _apiService.getOrderBook(userId: uid);
+       if (result['stat'] == 'Ok' && result['orders'] != null) {
+          final List<dynamic> orders = result['orders'];
+          for (var o in orders) {
+             final status = o['status']?.toString().toLowerCase() ?? '';
+             // Look for Open/Trigger Pending SL-LMT orders
+             if ((status.contains('open') || status.contains('pending') || status.contains('trigger')) && 
+                 o['remarks'] != 'Hard SL Exit') { // Optional filter if you tag orders
+                
+                final String token = o['token'];
+                if (_excludedTokens.contains(token)) continue; 
+                
+                // We found an active strategy order. Reconstruct tracker.
+                final double prc = double.tryParse(o['prc'] ?? '0') ?? 0;
+                // We don't know exact 'buyPrice' easily, but we can assume from order price / 2
+                // Or just init with safer defaults to enable Trailing.
+                
+                // If we don't know the Buy Price, we can't easily calculate if it SHOULD trail, 
+                // but we can at least enable modification.
+                
+                _activeExits[token] = {
+                   'isExitPlaced': true,
+                   'orderNo': o['norenordno'],
+                   'savedPrice': 0.0, // Will update on next tick
+                   'buyPrice': prc / 2.0, // Best guess or fetch from position
+                   'currentOrderPrice': prc,
+                };
+                print('ExitStrategyService: Restored active order ${o['norenordno']} for $token');
+             }
+          }
+       }
+    } catch (e) {
+      print('ExitStrategyService: Sync Error: $e');
+    }
+  }
+
+  // State Tracking
+  // Key: Token
+  // Value: { 'orderNo': String, 'savedPrice': double, 'isExitPlaced': bool, 'buyPrice': double }
   // State Tracking
   // Key: Token
   // Value: { 'orderNo': String, 'savedPrice': double, 'isExitPlaced': bool, 'buyPrice': double }
   final Map<String, Map<String, dynamic>> _activeExits = {};
+
+  // Tokens to ignore (e.g., managed by other strategies like 9:30)
+  final Set<String> _excludedTokens = {};
+  // Tokens currently placing order to prevent race conditions
+  final Set<String> _placingOrders = {};
+
+  void excludeToken(String token) {
+    _excludedTokens.add(token);
+  }
+
+  void includeToken(String token) {
+    _excludedTokens.remove(token);
+  }
   
   StreamSubscription? _positionSubscription;
   bool _isMonitoring = false;
@@ -28,8 +85,9 @@ class ExitStrategyService {
   double _sensexTrailingIncrement = 15.0;
 
   Future<void> init() async {
+    await _loadSettings();
+    await _syncStateWithOpenOrders(); // Restore state from API
     _startMonitoring();
-    _loadSettings();
   }
 
   Future<void> _loadSettings() async {
@@ -71,12 +129,26 @@ class ExitStrategyService {
   Future<void> _processPosition(Map<String, dynamic> pos) async {
     final String token = pos['token']?.toString() ?? '';
     if (token.isEmpty) return;
+    
+    // Skip if excluded (managed by another strategy)
+    if (_excludedTokens.contains(token)) return;
 
     final double netqty = double.tryParse(pos['netqty']?.toString() ?? '0') ?? 0;
     
     // If position is closed (qty 0), remove from tracking
     if (netqty == 0) {
       if (_activeExits.containsKey(token)) {
+        final tracker = _activeExits[token]!;
+        final String? ordNo = tracker['orderNo'];
+        
+        if (ordNo != null && ordNo.isNotEmpty) {
+           print('ExitStrategyService: Position closed. Cancelling SL Order $ordNo');
+           final String? uid = await _storageService.getUid();
+           if (uid != null) {
+              await _apiService.cancelOrder(userId: uid, norenordno: ordNo);
+           }
+        }
+
         print('ExitStrategyService: Position closed for $token. Removing tracker.');
         _activeExits.remove(token);
       }
@@ -109,8 +181,13 @@ class ExitStrategyService {
       // PLACEMENT LOGIC
       // Trigger: LTP >= 2.5 * avgPrice
       if (lp >= (2.5 * avgPrice)) {
-        print('ExitStrategyService: Trigger MET for ${pos['tsym']} (LTP: $lp, Buy: $avgPrice). Placing Exit Order...');
-        await _placeExitOrder(pos, avgPrice, lp);
+         if (_placingOrders.contains(token)) return; // Prevent concurrent placement
+         _placingOrders.add(token);
+         
+         print('ExitStrategyService: Trigger MET for ${pos['tsym']} (LTP: $lp, Buy: $avgPrice). Placing Exit Order...');
+         await _placeExitOrder(pos, avgPrice, lp);
+         
+         _placingOrders.remove(token);
       }
     } else {
       // MODIFICATION LOGIC
