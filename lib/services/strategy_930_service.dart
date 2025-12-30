@@ -11,6 +11,7 @@ class Strategy930Service {
   static final Strategy930Service _instance = Strategy930Service._internal();
   factory Strategy930Service() => _instance;
   Strategy930Service._internal() {
+    _startWsBinding(); // Start listening to WebSocket
     _loadSettings().then((_) => _restoreState());
   }
 
@@ -353,28 +354,34 @@ class Strategy930Service {
   }
 
   void _startWsBinding() {
+    debugPrint('Strategy930: Starting WS Binding...');
     _wsSubscription?.cancel();
     _wsSubscription = _wsService.messageStream.listen((message) {
       final String? type = message['t']?.toString();
       if (type == 't' || type == 'tf' || type == 'tk') {
         final String? token = message['tk']?.toString();
         final String? lp = message['lp']?.toString();
+        final String? pc = message['pc']?.toString();
+        // debugPrint('Strategy930: WS Tick for $token -> $lp ($pc%)');
         if (token != null && lp != null) {
-          _updateStrikePrice(token, lp);
+          _updateStrikePrice(token, lp, pc);
         }
       }
     });
   }
 
-  void _updateStrikePrice(String token, String lp) {
+  void _updateStrikePrice(String token, String lp, String? pc) {
     bool updated = false;
 
     // Check Nifty
     final nifty = List<Map<String, dynamic>>.from(niftyStrikes.value);
     for (var s in nifty) {
-      if (s['token'] == token && s['lp'] != lp) {
-        s['lp'] = lp;
-        updated = true;
+      if (s['token'] == token) {
+        if (s['lp'] != lp || s['pc'] != pc) {
+          s['lp'] = lp;
+          if (pc != null) s['pc'] = pc;
+          updated = true;
+        }
       }
     }
     if (updated) {
@@ -385,9 +392,12 @@ class Strategy930Service {
     // Check Sensex
     final sensex = List<Map<String, dynamic>>.from(sensexStrikes.value);
     for (var s in sensex) {
-      if (s['token'] == token && s['lp'] != lp) {
-        s['lp'] = lp;
-        updated = true;
+      if (s['token'] == token) {
+        if (s['lp'] != lp || s['pc'] != pc) {
+          s['lp'] = lp;
+          if (pc != null) s['pc'] = pc;
+          updated = true;
+        }
       }
     }
     if (updated) {

@@ -20,164 +20,168 @@ class _Strategy930PageState extends State<Strategy930Page> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('9:30 AM Strategy'),
-        actions: [
-          // Dev Tools (Long Press to see)
-          GestureDetector(
-            onLongPress: () {
-               showDialog(context: context, builder: (_) => AlertDialog(
-                 title: const Text('Dev Tools'),
-                 content: Column(
-                   mainAxisSize: MainAxisSize.min,
-                   children: [
-                     ElevatedButton(onPressed: _service.manualCapture, child: const Text('Force Capture 9:25')),
-                     ElevatedButton(onPressed: _service.manualFetch, child: const Text('Force Fetch 9:30')),
-                     const Divider(),
-                     ElevatedButton(
-                       style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-                       onPressed: _service.resetDay, 
-                       child: const Text('Reset Day (Clear State)', style: TextStyle(color: Colors.white)),
-                     ),
-                   ],
-                 ),
-               ));
-            },
-            child: ValueListenableBuilder<String>(
-              valueListenable: _service.currentTime,
-              builder: (ctx, time, _) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Row( // Row to ensure width
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.access_time, color: Colors.white70, size: 16),
-                      const SizedBox(width: 8),
-                      Text(
-                        time.isEmpty ? '--:--:--' : time, // Fallback
-                        style: const TextStyle(
-                          color: Colors.white, 
-                          fontSize: 16, 
-                          fontWeight: FontWeight.bold
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('9:30 AM Strategy'),
+          bottom: const TabBar(
+            indicatorColor: Color(0xFF00D97E),
+            labelStyle: TextStyle(fontWeight: FontWeight.bold),
+            tabs: [
+              Tab(text: 'NIFTY 50'),
+              Tab(text: 'SENSEX'),
+            ],
+          ),
+          actions: [
+            // Dev Tools
+            GestureDetector(
+              onLongPress: () {
+                 showDialog(context: context, builder: (_) => AlertDialog(
+                   title: const Text('Dev Tools'),
+                   content: Column(
+                     mainAxisSize: MainAxisSize.min,
+                     children: [
+                       ElevatedButton(onPressed: _service.manualCapture, child: const Text('Force Capture 9:25')),
+                       ElevatedButton(onPressed: _service.manualFetch, child: const Text('Force Fetch 9:30')),
+                       const Divider(),
+                       ElevatedButton(
+                         style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                         onPressed: _service.resetDay, 
+                         child: const Text('Reset Day (Clear State)', style: TextStyle(color: Colors.white)),
+                       ),
+                     ],
+                   ),
+                 ));
+              },
+              child: ValueListenableBuilder<String>(
+                valueListenable: _service.currentTime,
+                builder: (ctx, time, _) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.access_time, color: Colors.white70, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          time.isEmpty ? '--:--:--' : time, // Fallback
+                          style: const TextStyle(
+                            color: Colors.white, 
+                            fontSize: 16, 
+                            fontWeight: FontWeight.bold
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            // Top Status Bar
+            ValueListenableBuilder<String?>(
+              valueListenable: _service.statusMessage,
+              builder: (ctx, status, _) {
+                if (status == null) return const SizedBox.shrink();
+                return Container(
+                  width: double.infinity,
+                  color: Colors.blue.withOpacity(0.2),
+                  padding: const EdgeInsets.all(8),
+                  child: Text(
+                    status,
+                    style: const TextStyle(color: Colors.blueAccent),
+                    textAlign: TextAlign.center,
                   ),
                 );
               },
             ),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Top Status Bar
-          ValueListenableBuilder<String?>(
-            valueListenable: _service.statusMessage,
-            builder: (ctx, status, _) {
-              if (status == null) return const SizedBox.shrink();
-              return Container(
-                width: double.infinity,
-                color: Colors.blue.withOpacity(0.2),
-                padding: const EdgeInsets.all(8),
-                child: Text(
-                  status,
-                  style: const TextStyle(color: Colors.blueAccent),
-                  textAlign: TextAlign.center,
-                ),
-              );
-            },
-          ),
-          // Scheduled Times Display
-          Container(
-             width: double.infinity,
-             color: Colors.black26,
-             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-             child: Row(
-               mainAxisAlignment: MainAxisAlignment.center,
-               children: [
-                 const Text('Scheduled: ', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                 ValueListenableBuilder<String>(
-                   valueListenable: _service.timeSpotCapture,
-                   builder: (ctx, t, _) => Text('Capture@$t  ', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                 ),
-                 ValueListenableBuilder<String>(
-                   valueListenable: _service.timeStrikeFetch,
-                   builder: (ctx, t, _) => Text('Fetch@$t', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                 ),
-               ],
-             ),
-          ),
-          ValueListenableBuilder<String?>(
-            valueListenable: _service.errorMessage,
-            builder: (ctx, error, _) {
-              if (error == null) return const SizedBox.shrink();
-              return Container(
-                width: double.infinity,
-                color: Colors.red.withOpacity(0.2),
-                padding: const EdgeInsets.all(8),
-                child: Text(
-                  error,
-                  style: const TextStyle(color: Colors.redAccent),
-                  textAlign: TextAlign.center,
-                ),
-              );
-            },
-          ),
+            // Scheduled Times Display
+            Container(
+               width: double.infinity,
+               color: Colors.black26,
+               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+               child: Row(
+                 mainAxisAlignment: MainAxisAlignment.center,
+                 children: [
+                   const Text('Scheduled: ', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                   ValueListenableBuilder<String>(
+                     valueListenable: _service.timeSpotCapture,
+                     builder: (ctx, t, _) => Text('Capture@$t  ', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                   ),
+                   ValueListenableBuilder<String>(
+                     valueListenable: _service.timeStrikeFetch,
+                     builder: (ctx, t, _) => Text('Fetch@$t', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                   ),
+                 ],
+               ),
+            ),
+            ValueListenableBuilder<String?>(
+              valueListenable: _service.errorMessage,
+              builder: (ctx, error, _) {
+                if (error == null) return const SizedBox.shrink();
+                return Container(
+                  width: double.infinity,
+                  color: Colors.red.withOpacity(0.2),
+                  padding: const EdgeInsets.all(8),
+                  child: Text(
+                    error,
+                    style: const TextStyle(color: Colors.redAccent),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              },
+            ),
 
-          Expanded(
-            child: Row(
-              children: [
-                // NIFTY Column
-                Expanded(
-                  child: _buildIndexColumn(
+            // Tab View
+            Expanded(
+              child: TabBarView(
+                children: [
+                  _buildIndexColumn(
                     title: 'NIFTY 50',
                     spotNotifier: _service.niftySpot,
                     strikesNotifier: _service.niftyStrikes,
                     color: Colors.blueAccent,
                   ),
-                ),
-                // Vertical Divider
-                Container(width: 1, color: Colors.white10),
-                // SENSEX Column
-                Expanded(
-                  child: _buildIndexColumn(
+                  _buildIndexColumn(
                     title: 'SENSEX',
                     spotNotifier: _service.sensexSpot,
                     strikesNotifier: _service.sensexStrikes,
                     color: Colors.purpleAccent,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          
-          // Bottom Action Bar
-          GlassCard(
-             padding: const EdgeInsets.all(16),
-             child: SafeArea(
-               child: Row(
-                 children: [
-                   Expanded(
-                     child: ElevatedButton(
-                       style: ElevatedButton.styleFrom(
-                         backgroundColor: const Color(0xFF00D97E),
-                         foregroundColor: Colors.black,
-                         padding: const EdgeInsets.symmetric(vertical: 16),
-                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            
+            // Bottom Action Bar
+            GlassCard(
+               padding: const EdgeInsets.all(16),
+               child: SafeArea(
+                 child: Row(
+                   children: [
+                     Expanded(
+                       child: ElevatedButton(
+                         style: ElevatedButton.styleFrom(
+                           backgroundColor: const Color(0xFF00D97E),
+                           foregroundColor: Colors.black,
+                           padding: const EdgeInsets.symmetric(vertical: 16),
+                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                         ),
+                         onPressed: () {
+                           _initiateOrders();
+                         },
+                         child: const Text('INITIATE SELECTED ORDERS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                        ),
-                       onPressed: () {
-                         _initiateOrders();
-                       },
-                       child: const Text('INITIATE SELECTED ORDERS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                      ),
-                   ),
-                 ],
+                   ],
+                 ),
                ),
-             ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -278,10 +282,32 @@ class _Strategy930PageState extends State<Strategy930Page> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  strike['lp']?.toString() ?? '...',
-                                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
-                                ),
+                                  Text(
+                                    strike['lp']?.toString() ?? '...',
+                                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                  ),
+                                  Builder(
+                                    builder: (context) {
+                                      final String? pcStr = strike['pc']?.toString();
+                                      final String? lpStr = strike['lp']?.toString();
+                                      
+                                      if (pcStr != null && lpStr != null) {
+                                        final double pc = double.tryParse(pcStr) ?? 0.0;
+                                        final double lp = double.tryParse(lpStr) ?? 0.0;
+                                        // Calculate approx difference: Diff = LTP - (LTP / (1 + pc/100))
+                                        final double prevClose = lp / (1 + (pc / 100));
+                                        final double diff = lp - prevClose;
+                                        final Color color = pc >= 0 ? const Color(0xFF00D97E) : const Color(0xFFFF4D4D);
+                                        final String sign = pc >= 0 ? '+' : '';
+                                        
+                                        return Text(
+                                          '$sign${diff.toStringAsFixed(2)} ($sign${pc.toStringAsFixed(2)}%)',
+                                          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w500),
+                                        );
+                                      }
+                                      return const SizedBox.shrink();
+                                    },
+                                  ),
                                 // Status Badge (Mini)
                                 ValueListenableBuilder<Map<String, String>>(
                                   valueListenable: _service.exitStatusMap,
