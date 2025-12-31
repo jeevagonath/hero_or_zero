@@ -4,6 +4,7 @@ import 'dart:ui';
 import '../core/constants.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/biometric_service.dart';
 import 'main_screen.dart';
 import '../widgets/glass_widgets.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,6 +21,7 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _apiService = ApiService();
   final _storageService = StorageService();
+  final _biometricService = BiometricService();
 
   final _userIdController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -28,6 +30,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   String? _errorMessage;
   Map<String, String>? _devConfig;
+  bool _canCheckBiometrics = false;
 
   @override
   void initState() {
@@ -40,6 +43,15 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _devConfig = config;
     });
+
+    // Check availability
+    final pin = await _storageService.getDevicePin();
+    final bio = await _biometricService.isBiometricAvailable();
+    if (mounted) {
+      setState(() {
+         _canCheckBiometrics = bio && pin != null && pin.isNotEmpty;
+      });
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -284,6 +296,22 @@ class _LoginPageState extends State<LoginPage> {
                 icon: Icons.login_rounded,
               ),
             ),
+            if (_canCheckBiometrics) ...[
+               const SizedBox(height: 20),
+               SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: _handleBiometricLogin,
+                  icon: const Icon(Icons.fingerprint_rounded, color: Color(0xFF00D97E), size: 28),
+                  label: Text('LOGIN WITH BIOMETRIC', style: GoogleFonts.outfit(color: const Color(0xFF00D97E), fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: const Color(0xFF00D97E).withOpacity(0.1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+               ),
+            ],
           ],
         ),
       ),
@@ -348,5 +376,46 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ],
     );
+  }
+  Future<void> _handleBiometricLogin() async {
+     final authenticated = await _biometricService.authenticate();
+     if (!authenticated) return;
+
+     final pin = await _storageService.getDevicePin();
+     if (pin == null) return;
+
+     final config = await _storageService.getDevConfig();
+     final uid = await _storageService.getUid();
+     
+     if (uid == null || config['vendorCode']!.isEmpty || config['apiKey']!.isEmpty || config['imei']!.isEmpty) {
+        setState(() => _errorMessage = 'Configuration or User ID missing. Login with password first.');
+        return;
+     }
+
+     setState(() {
+       _isLoading = true;
+       _errorMessage = null;
+     });
+
+     final result = await _apiService.pinAuth(
+       userId: uid,
+       devicePin: pin, // Service hashes it
+       vendorCode: config['vendorCode']!,
+       apiKey: config['apiKey']!,
+       imei: config['imei']!,
+     );
+
+     setState(() {
+        _isLoading = false;
+        if (result['stat'] == 'Ok') {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => MainScreen(userData: result),
+            ),
+          );
+        } else {
+          _errorMessage = result['emsg'] ?? 'Biometric Login Failed';
+        }
+     });
   }
 }

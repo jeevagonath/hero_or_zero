@@ -17,12 +17,26 @@ $content = Get-Content $pubspecPath -Raw
 $pattern = 'version: (\d+\.\d+\.\d+)\+(\d+)'
 
 if ($content -match $pattern) {
-    $version = $matches[1]
-    $buildNumber = [int]$matches[2]
-    $newBuildNumber = $buildNumber + 1
+    # $version = $matches[1]
+    # $buildNumber = [int]$matches[2]
+    # $newBuildNumber = $buildNumber + 1
     
-    $newVersionLine = "version: $version+$newBuildNumber"
-    $newContent = $content -replace $pattern, $newVersionLine
+    # $newVersionLine = "version: $version+$newBuildNumber"
+    # $newContent = $content -replace $pattern, $newVersionLine
+
+
+    $major = [int]$matches[1]
+    $minor = [int]$matches[2]
+    $patch = [int]$matches[3]
+    $build = [int]$matches[4]
+
+    # Increment logic
+    $minor += 1
+    $patch = 1
+    $build += 1
+
+    $newVersion = "$major.$minor.$patch+$build"
+    $newContent = $content -replace $pattern, "version: $newVersion"
     
     Set-Content -Path $pubspecPath -Value $newContent
     Write-Host "Updated version to $version+$newBuildNumber" -ForegroundColor Green

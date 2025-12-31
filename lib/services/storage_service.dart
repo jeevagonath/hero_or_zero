@@ -22,6 +22,7 @@ class StorageService {
   static const String _keySensexTrailingStep = 'sensex_trailing_step';
   static const String _keySensexTrailingIncrement = 'sensex_trailing_increment';
   static const String _keyLoginDate = 'last_login_date';
+  static const String _keyDevicePin = 'device_pin';
 
   Future<void> saveUserToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -72,8 +73,7 @@ class StorageService {
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_keyUserToken);
-    await prefs.remove(_keyUid);
-    // Note: We DO NOT remove developer settings here as requested.
+    // await prefs.remove(_keyUid); // Keep UID for Biometric Login / Remember Me
   }
 
   // Developer Settings
@@ -184,5 +184,21 @@ class StorageService {
   Future<void> clearStrategy930Data() async {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('strategy_930_data');
+  }
+
+  // Device PIN for Biometrics
+  Future<void> saveDevicePin(String pin) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyDevicePin, pin);
+  }
+
+  Future<String?> getDevicePin() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyDevicePin);
+  }
+
+  Future<void> clearDevicePin() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_keyDevicePin);
   }
 }

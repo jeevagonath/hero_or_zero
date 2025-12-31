@@ -43,6 +43,7 @@ dependencies:
   flutter_spinkit: ^5.2.2
   candlesticks: ^2.1.0
   wakelock_plus: ^1.4.0
+  local_auth: ^3.0.0
 
 dev_dependencies:
   flutter_test:

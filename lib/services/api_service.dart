@@ -71,6 +71,89 @@ class ApiService {
     }
   }
 
+  Future<Map<String, dynamic>> pinAuth({
+    required String userId,
+    required String devicePin,
+    required String vendorCode,
+    required String apiKey,
+    required String imei,
+  }) async {
+    final String dpinHash = sha256Hash(devicePin);
+    final String appKeyHash = sha256Hash('$userId|$apiKey');
+
+    final Map<String, dynamic> jData = {
+      'apkversion': ApiConstants.apkVersion,
+      'uid': userId,
+      'dpin': dpinHash,
+      'vc': vendorCode,
+      'appkey': appKeyHash,
+      'imei': imei,
+      'source': ApiConstants.source,
+      'ipaddr': '1.1.1.1', // Dummy IP as per requirements usually needing *any* IP
+    };
+
+    print('PinAuth jData: $jData');
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/NorenWClientTP/PinAuth'),
+        body: 'jData=${jsonEncode(jData)}',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+      
+      print('PinAuth Response: ${response.statusCode} ${response.body}');
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data['stat'] == 'Ok') {
+          _userToken = data['susertoken'];
+          if (_userToken != null) {
+            await _storageService.saveUserToken(_userToken!);
+            await _storageService.saveUid(userId);
+            _userId = userId;
+          } else {
+             // Some implementations return success but token in a different field?
+             // Usually susertoken.
+          }
+        }
+        return data;
+      } else {
+        return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'stat': 'Not_Ok', 'emsg': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> setPin({
+    required String userId,
+    required String devicePin,
+    required String imei,
+  }) async {
+    final Map<String, dynamic> jData = {
+      'uid': userId,
+      'imei': imei,
+      'source': ApiConstants.source,
+      'dpin': devicePin, // Specific instruction: Plain text
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConstants.baseUrl}/NorenWClientTP/SetPin'),
+        body: 'jData=${jsonEncode(jData)}&jKey=${_userToken ?? ''}',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      );
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'stat': 'Not_Ok', 'emsg': e.toString()};
+    }
+  }
+
   Future<void> initToken() async {
     _userToken = await _storageService.getUserToken();
     _userId = await _storageService.getUid();
@@ -537,6 +620,36 @@ class ApiService {
            return data;
         }
         return {'stat': 'Not_Ok', 'emsg': 'Invalid response format'};
+      } else {
+        return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
+      }
+    } catch (e) {
+      return {'stat': 'Not_Ok', 'emsg': e.toString()};
+    }
+  }
+
+  Future<Map<String, dynamic>> getLimits({required String userId}) async {
+    final Map<String, dynamic> jData = {
+      'uid': userId,
+      'actid': userId,
+    };
+
+    try {
+      final response = await http.post(
+        Uri.parse(ApiConstants.limitsUrl),
+        body: 'jData=${jsonEncode(jData)}&jKey=${_userToken ?? ''}',
+      );
+      
+      print('Limits Request URL: ${ApiConstants.limitsUrl}');
+      print('Limits Request jData: $jData');
+      print('Limits Request jKey: ${_userToken ?? 'null'}');
+      print('Limits Response: ${response.statusCode} - ${response.body}');
+
+
+      print('Limits Response: ${response.body}');
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
       } else {
         return {'stat': 'Not_Ok', 'emsg': 'HTTP Error: ${response.statusCode}'};
       }

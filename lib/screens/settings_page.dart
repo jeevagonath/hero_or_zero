@@ -3,7 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/storage_service.dart';
 import '../services/strategy_service.dart';
 import '../services/strategy_930_service.dart';
+import '../services/strategy_930_service.dart';
 import '../services/pnl_service.dart';
+import '../services/biometric_service.dart';
+import '../services/api_service.dart';
 import '../widgets/glass_widgets.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -17,6 +20,8 @@ class _SettingsPageState extends State<SettingsPage> {
   final StorageService _storageService = StorageService();
   final StrategyService _strategyService = StrategyService();
   final Strategy930Service _strategy930Service = Strategy930Service();
+  final BiometricService _biometricService = BiometricService();
+  final ApiService _apiService = ApiService();
   final List<String> _days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   
   String _niftyDay = 'Tuesday';
@@ -27,7 +32,11 @@ class _SettingsPageState extends State<SettingsPage> {
   String _exitTime = '15:00';
   final TextEditingController _niftyLotController = TextEditingController();
   final TextEditingController _sensexLotController = TextEditingController();
+  final TextEditingController _devicePinController = TextEditingController();
   bool _showTestButton = true;
+  bool _isBiometricEnabled = false;
+  bool _isBiometricSupported = false;
+
   bool _isLoading = true;
 
   @override
@@ -48,8 +57,18 @@ class _SettingsPageState extends State<SettingsPage> {
       _strategy930CaptureTime = settings['strategy930CaptureTime'] ?? '09:25';
       _strategy930FetchTime = settings['strategy930FetchTime'] ?? '09:30';
       _exitTime = settings['exitTime'] ?? '15:00';
+
       _isLoading = false;
     });
+
+    final supported = await _biometricService.isBiometricAvailable();
+    final currentPin = await _storageService.getDevicePin();
+    if (mounted) {
+      setState(() {
+        _isBiometricSupported = supported;
+        _isBiometricEnabled = currentPin != null && currentPin.isNotEmpty;
+      });
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -138,8 +157,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                   const SizedBox(height: 32),
-
-                  _buildSectionHeader('GENERAL SETTINGS', Icons.tune_rounded),
+                  _buildSectionHeader('TRADING CONFIGURATION', Icons.tune_rounded),
                   const SizedBox(height: 16),
                   GlassCard(
                     padding: const EdgeInsets.all(20),
@@ -158,6 +176,26 @@ class _SettingsPageState extends State<SettingsPage> {
                       ],
                     ),
                   ),
+                  
+                  const SizedBox(height: 32),
+
+                  if (_isBiometricSupported) ...[
+                    _buildSectionHeader('SECURITY SETTINGS', Icons.security_rounded),
+                    const SizedBox(height: 16),
+                    GlassCard(
+                      padding: const EdgeInsets.all(20),
+                      opacity: 0.05,
+                      child: Column(
+                        children: [
+                          _buildSwitchRow(
+                            'Enable Biometric Login', 
+                            _isBiometricEnabled, 
+                            (val) => _handleBiometricToggle(val),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   
                   const SizedBox(height: 48),
                   NeonButton(
@@ -312,4 +350,91 @@ class _SettingsPageState extends State<SettingsPage> {
       ],
     );
   }
+  Future<void> _handleBiometricToggle(bool value) async {
+    if (value) {
+      // Enabling Biometrics
+      _devicePinController.clear();
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFF161B22),
+          title: Text('Setup Device PIN', style: GoogleFonts.outfit(color: Colors.white)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Enter a 4-6 digit PIN to link with your biometric.',
+                style: GoogleFonts.inter(color: Colors.blueGrey, fontSize: 13),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _devicePinController,
+                keyboardType: TextInputType.number,
+                obscureText: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Enter PIN',
+                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.05),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () async {
+                final pin = _devicePinController.text.trim();
+                if (pin.length < 4) {
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('PIN too short')));
+                   return;
+                }
+                Navigator.pop(context); // Close dialog
+
+                final devConfig = await _storageService.getDevConfig();
+                final imei = devConfig['imei'];
+                final uid = await _storageService.getUid();
+
+                if (imei == null || imei.isEmpty || uid == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Missing Account Config')));
+                  return;
+                }
+
+                // Call SetPin API
+                final result = await _apiService.setPin(
+                  userId: uid,
+                  devicePin: pin,
+                  imei: imei,
+                );
+
+                if (result['stat'] == 'Ok') {
+                   await _storageService.saveDevicePin(pin);
+                   setState(() {
+                     _isBiometricEnabled = true;
+                   });
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric Login Enabled')));
+                } else {
+                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(result['emsg'] ?? 'Failed to set PIN')));
+                }
+              },
+              child: const Text('Enable', style: TextStyle(color: Color(0xFF4D96FF))),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Disabling Biometrics
+      await _storageService.clearDevicePin();
+      setState(() {
+        _isBiometricEnabled = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biometric Login Disabled')));
+    }
+  }
+
 }

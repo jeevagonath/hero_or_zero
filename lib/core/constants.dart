@@ -14,6 +14,7 @@ class ApiConstants {
   static const String addMultiScripsToMW = '/NorenWClientTP/AddMultiScripsToMW';
   static const String deleteMultiMWScrips = '/NorenWClientTP/DeleteMultiMWScrips';
   static const String websocketUrl = 'wss://api.shoonya.com/NorenWSTP/';
+  static const String limitsUrl = 'https://api.shoonya.com/NorenWClientTP/Limits';
   
   // Default values
   static const String apkVersion = '1.0.0';

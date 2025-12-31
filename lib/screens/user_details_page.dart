@@ -4,20 +4,47 @@ import '../services/storage_service.dart';
 import '../widgets/glass_widgets.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class UserDetailsPage extends StatelessWidget {
+class UserDetailsPage extends StatefulWidget {
   final Map<String, dynamic> userData;
 
   const UserDetailsPage({super.key, required this.userData});
 
-  Future<void> _handleLogout(BuildContext context) async {
-    final ApiService apiService = ApiService();
-    final StorageService storageService = StorageService();
+  @override
+  State<UserDetailsPage> createState() => _UserDetailsPageState();
+}
 
+class _UserDetailsPageState extends State<UserDetailsPage> {
+  final ApiService _apiService = ApiService();
+  final StorageService _storageService = StorageService();
+  String _availableCash = '0.00';
+  bool _isLoadingLimits = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLimits();
+  }
+
+  Future<void> _fetchLimits() async {
+    setState(() => _isLoadingLimits = true);
+    final uid = await _storageService.getUid();
+    if (uid != null) {
+      final result = await _apiService.getLimits(userId: uid);
+      if (mounted && result['stat'] == 'Ok') {
+        setState(() {
+          _availableCash = result['cash'] ?? '0.00';
+        });
+      }
+    }
+    if (mounted) setState(() => _isLoadingLimits = false);
+  }
+
+  Future<void> _handleLogout(BuildContext context) async {
     // 1. Clear session in API
-    apiService.clearSession();
+    _apiService.clearSession();
     
     // 2. Clear local storage
-    await storageService.clearAll();
+    await _storageService.clearAll();
 
     // 3. Navigate back to login
     if (context.mounted) {
@@ -27,9 +54,9 @@ class UserDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String userName = userData['uname'] ?? 'User';
-    final String accountId = userData['actid'] ?? 'N/A';
-    final String brokerName = userData['brkname'] ?? 'N/A';
+    final String userName = widget.userData['uname'] ?? 'User';
+    final String accountId = widget.userData['actid'] ?? 'N/A';
+    final String brokerName = widget.userData['brkname'] ?? 'N/A';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
@@ -38,6 +65,8 @@ class UserDetailsPage extends StatelessWidget {
         children: [
           _buildCompactHeader(context, userName, accountId),
           const SizedBox(height: 32),
+           _buildAccountOverview(),
+          const SizedBox(height: 24),
           _buildInfoCard(
             title: 'CONNECTION CONFIGURATION',
             children: [
@@ -51,7 +80,7 @@ class UserDetailsPage extends StatelessWidget {
             title: 'HOLDER IDENTITY',
             children: [
               _buildInfoRow('Full Name', userName),
-              _buildInfoRow('Email Address', userData['email'] ?? 'N/A'),
+              _buildInfoRow('Email Address', widget.userData['email'] ?? 'N/A'),
               _buildInfoRow('Access Level', 'ALGO_TRADER', color: const Color(0xFF4D96FF)),
             ],
           ),
@@ -201,6 +230,53 @@ class UserDetailsPage extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAccountOverview() {
+    return GlassCard(
+      padding: const EdgeInsets.all(24),
+      opacity: 0.05,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'ACCOUNT OVERVIEW', 
+                style: TextStyle(
+                  color: Colors.blueGrey, 
+                  fontSize: 10, 
+                  fontWeight: FontWeight.w900, 
+                  letterSpacing: 1.5
+                )
+              ),
+              if (_isLoadingLimits)
+                 const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4D96FF)))
+              else
+                 InkWell(
+                   onTap: _fetchLimits,
+                   child: const Icon(Icons.refresh_rounded, color: Color(0xFF4D96FF), size: 18),
+                 ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Available Cash',
+            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 13),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '₹$_availableCash',
+            style: GoogleFonts.outfit(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
