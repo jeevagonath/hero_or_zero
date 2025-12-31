@@ -139,6 +139,7 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
                 'exch': exch,
                 'token': token,
                 'tsym': scrip['tsym'] ?? '',
+                'dname': scrip['dname'] ?? '',
                 'lp': '0.00',
                 'o': '0.00',
                 'c_calc': '0.00',
@@ -330,6 +331,7 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
         'exch': exch,
         'token': token,
         'tsym': tsym,
+        'dname': quote['dname'] ?? scrip['dname'] ?? '',
         'lp': quote['lp'] ?? '0.00',
         'o': quote['o'] ?? '0.00',
         'c_calc': '0.00',
@@ -601,23 +603,63 @@ class _DashboardPlaceholderPageState extends State<DashboardPlaceholderPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  scrip['tsym'],
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  scrip['exch'],
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.white.withOpacity(0.4),
-                    fontWeight: FontWeight.w500,
-                  ),
+                Builder(
+                  builder: (context) {
+                    final String dname = scrip['dname'] ?? '';
+                    final parts = dname.split(' ');
+                    String title = scrip['tsym'];
+                    String subtitle = scrip['exch'];
+
+                    // Logic to parse "NIFTY 06JAN26 26000 PE"
+                    if (parts.length >= 4) {
+                      // title = "NIFTY 26000 PE"
+                      title = '${parts[0]} ${parts[2]} ${parts[3]}';
+                      // subtitle = "06JAN26"
+                      subtitle = parts[1];
+                    }
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                             Text(
+                              scrip['exch'],
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.4),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            if (parts.length >= 4) ...[
+                              const SizedBox(width: 8),
+                              Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.blueGrey, shape: BoxShape.circle)),
+                              const SizedBox(width: 8),
+                              Text(
+                                subtitle,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF4D96FF),
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ]
+                          ],
+                        ),
+                      ],
+                    );
+                  }
                 ),
               ],
             ),

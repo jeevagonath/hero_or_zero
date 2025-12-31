@@ -103,14 +103,14 @@ class Strategy930Service {
            }
         }
 
-        if (data['sensexStrikes'] != null) {
-           final List<dynamic> ss = data['sensexStrikes'];
-           sensexStrikes.value = ss.map((e) => Map<String, dynamic>.from(e)).toList();
-           for(var s in sensexStrikes.value) {
-              _wsService.subscribeTouchline(s['exch'], s['token']);
-              _exitService.excludeToken(s['token'].toString());
-           }
-        }
+        // if (data['sensexStrikes'] != null) {
+        //    final List<dynamic> ss = data['sensexStrikes'];
+        //    sensexStrikes.value = ss.map((e) => Map<String, dynamic>.from(e)).toList();
+        //    for(var s in sensexStrikes.value) {
+        //       _wsService.subscribeTouchline(s['exch'], s['token']);
+        //       _exitService.excludeToken(s['token'].toString());
+        //    }
+        // }
 
         _spotCapturedToday = data['spotCaptured'] ?? false;
         _strikesFetchedToday = data['strikesFetched'] ?? false;
@@ -181,7 +181,7 @@ class Strategy930Service {
     final positions = _pnlService.positions.value;
     if (positions.isEmpty) return;
 
-    final allStrikes = [...niftyStrikes.value, ...sensexStrikes.value];
+    final allStrikes = [...niftyStrikes.value]; //, ...sensexStrikes.value
     final Set<String> strategyTokens = allStrikes.map((s) => s['token'].toString()).toSet();
 
     for (var pos in positions) {
@@ -388,21 +388,21 @@ class Strategy930Service {
        niftyStrikes.value = nifty;
     }
 
-    updated = false;
-    // Check Sensex
-    final sensex = List<Map<String, dynamic>>.from(sensexStrikes.value);
-    for (var s in sensex) {
-      if (s['token'] == token) {
-        if (s['lp'] != lp || s['pc'] != pc) {
-          s['lp'] = lp;
-          if (pc != null) s['pc'] = pc;
-          updated = true;
-        }
-      }
-    }
-    if (updated) {
-       sensexStrikes.value = sensex;
-    }
+    // updated = false;
+    // // Check Sensex
+    // final sensex = List<Map<String, dynamic>>.from(sensexStrikes.value);
+    // for (var s in sensex) {
+    //   if (s['token'] == token) {
+    //     if (s['lp'] != lp || s['pc'] != pc) {
+    //       s['lp'] = lp;
+    //       if (pc != null) s['pc'] = pc;
+    //       updated = true;
+    //     }
+    //   }
+    // }
+    // if (updated) {
+    //    sensexStrikes.value = sensex;
+    // }
   }
 
   Future<void> captureSpots() async {
@@ -422,13 +422,13 @@ class Strategy930Service {
       }
 
       // Capture SENSEX (BSE|1)
-      final sensexRes = await _apiService.getQuote(userId: uid, exchange: 'BSE', token: '1');
-      if (sensexRes['stat'] == 'Ok' && sensexRes['lp'] != null) {
-        sensexSpot.value = double.tryParse(sensexRes['lp']);
-      }
+      // final sensexRes = await _apiService.getQuote(userId: uid, exchange: 'BSE', token: '1');
+      // if (sensexRes['stat'] == 'Ok' && sensexRes['lp'] != null) {
+      //   sensexSpot.value = double.tryParse(sensexRes['lp']);
+      // }
 
       _spotCapturedToday = true;
-      statusMessage.value = 'Spot Captured: Nifty ${niftySpot.value}, Sensex ${sensexSpot.value}';
+      statusMessage.value = 'Spot Captured: Nifty ${niftySpot.value}'; //, Sensex ${sensexSpot.value}';
       _saveState();
     } catch (e) {
       errorMessage.value = 'Spot Capture Failed: $e';
@@ -448,7 +448,7 @@ class Strategy930Service {
       if (uid == null) throw 'User not logged in';
 
       // Ensure we have spots (re-capture if needed, though 9:25 should have run)
-      if (niftySpot.value == null || sensexSpot.value == null) {
+      if (niftySpot.value == null) { //|| sensexSpot.value == null
         await captureSpots();
       }
 
@@ -456,17 +456,16 @@ class Strategy930Service {
         await _resolveStrikesForIndex(uid, 'NIFTY', niftySpot.value!, 50, niftyStrikes);
       }
       
-      if (sensexSpot.value != null) {
-        await _resolveStrikesForIndex(uid, 'SENSEX', sensexSpot.value!, 100, sensexStrikes);
-      }
+      // if (sensexSpot.value != null) {
+      //   await _resolveStrikesForIndex(uid, 'SENSEX', sensexSpot.value!, 100, sensexStrikes);
+      // }
 
       _strikesFetchedToday = true;
-      _strikesFetchedToday = true;
-      if (niftyStrikes.value.isEmpty && sensexStrikes.value.isEmpty) {
+      if (niftyStrikes.value.isEmpty) { //&& sensexStrikes.value.isEmpty
         statusMessage.value = 'Fetch Complete: No strikes found. Check Search Logic.';
         errorMessage.value = 'No contracts found for current spot.';
       } else {
-        statusMessage.value = 'Contracts Fetched: ${niftyStrikes.value.length} Nifty, ${sensexStrikes.value.length} Sensex';
+        statusMessage.value = 'Contracts Fetched: ${niftyStrikes.value.length} Nifty';//, ${sensexStrikes.value.length} Sensex';
         _saveState();
       }
 
@@ -539,12 +538,14 @@ class Strategy930Service {
              // Fetch authoritative Lot Size (LS) & Price (LP) via Quote
              String contractLotSize = '1';
              String initialLp = '...';
+             String dname = '';
              
              try {
                final quote = await _apiService.getQuote(userId: uid, exchange: v['exch'], token: v['token']);
                if (quote['stat'] == 'Ok') {
                  contractLotSize = quote['ls']?.toString() ?? '1';
                  initialLp = quote['lp']?.toString() ?? '...';
+                 dname = quote['dname']?.toString() ?? '';
                }
              } catch (e) {
                 debugPrint('Strategy930: Failed to fetch Quote for $tsym');
@@ -556,6 +557,7 @@ class Strategy930Service {
                'tsym': tsym,
                'token': v['token'],
                'exch': v['exch'],
+               'dname': dname.isNotEmpty ? dname : (v['dname'] ?? ''),
                'lp': initialLp, // Use fetched price
                'ls': contractLotSize, 
                'selected': false,
@@ -580,7 +582,7 @@ class Strategy930Service {
       if (list == niftyStrikes.value) {
           niftyStrikes.value = List.from(list);
       } else {
-          sensexStrikes.value = List.from(list);
+         // sensexStrikes.value = List.from(list);
       }
       _saveState();
     }
@@ -596,7 +598,7 @@ class Strategy930Service {
        if (list == niftyStrikes.value) {
           niftyStrikes.value = List.from(list);
       } else {
-          sensexStrikes.value = List.from(list);
+         // sensexStrikes.value = List.from(list);
       }
       _saveState();
     }

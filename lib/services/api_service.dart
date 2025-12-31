@@ -636,7 +636,7 @@ class ApiService {
 
     try {
       final response = await http.post(
-        Uri.parse(ApiConstants.limitsUrl),
+        Uri.parse('${ApiConstants.baseUrl}${ApiConstants.limitsUrl}'),
         body: 'jData=${jsonEncode(jData)}&jKey=${_userToken ?? ''}',
       );
       
