@@ -5,6 +5,7 @@ import '../core/constants.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/biometric_service.dart';
+import '../services/update_service.dart';
 import 'main_screen.dart';
 import '../widgets/glass_widgets.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -36,6 +37,13 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     _loadDevConfig();
+    _loadUserCredentials();
+    _checkBiometricAvailability();
+    
+    // Check for Updates
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+       UpdateService().checkForUpdate(context);
+    });
   }
 
   Future<void> _loadDevConfig() async {
