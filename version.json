@@ -4,5 +4,5 @@
     "forceUpdate": false,
     "title": "Update Available",
     "message": "A new version of Hero or Zero is available. Please update for the latest features and fixes.",
-    "downloadUrl": "https://github.com/jeevagonath/hero_or_zero/releases"
+    "downloadUrl": "https://github.com/jeevagonath/hero_or_zero/releases/download/HeroZero/app-release.apk"
 }

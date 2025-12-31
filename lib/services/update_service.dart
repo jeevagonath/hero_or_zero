@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:ota_update/ota_update.dart';
 
 class UpdateService {
   // Raw GitHub URL for version.json
@@ -19,8 +20,14 @@ class UpdateService {
 
       debugPrint('UpdateService: Current Version: $currentVersion+$currentBuildNumber');
 
-      // 2. Fetch remote version info
-      final response = await http.get(Uri.parse(_versionUrl));
+      // 2. Fetch remote version info with cache killing
+      final String url = '$_versionUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+      debugPrint('UpdateService: Fetching from $url');
+      
+      final response = await http.get(Uri.parse(url));
+      
+      debugPrint('UpdateService: Response Code: ${response.statusCode}');
+      debugPrint('UpdateService: Response Body: ${response.body}');
       
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -86,7 +93,7 @@ class UpdateService {
   }) {
     showDialog(
       context: context,
-      barrierDismissible: !forceUpdate, // Prevent dismissing if forced
+      barrierDismissible: !forceUpdate,
       builder: (ctx) => WillPopScope(
         onWillPop: () async => !forceUpdate,
         child: AlertDialog(
@@ -101,16 +108,136 @@ class UpdateService {
               ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00D97E)),
-              onPressed: () async {
-                 final Uri url = Uri.parse(downloadUrl);
-                 if (await canLaunchUrl(url)) {
-                   await launchUrl(url, mode: LaunchMode.externalApplication);
-                 } else {
-                   debugPrint('Could not launch $downloadUrl');
-                 }
+              onPressed: () {
+                Navigator.pop(ctx); // Close alert
+                _tryOtaUpdate(context, downloadUrl);
               },
               child: const Text('UPDATE NOW', style: TextStyle(color: Colors.black)),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _tryOtaUpdate(BuildContext context, String url) async {
+    // Show Progress Dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _DownloadProgressDialog(url: url),
+    );
+  }
+}
+
+class _DownloadProgressDialog extends StatefulWidget {
+  final String url;
+  const _DownloadProgressDialog({required this.url});
+
+  @override
+  State<_DownloadProgressDialog> createState() => _DownloadProgressDialogState();
+}
+
+class _DownloadProgressDialogState extends State<_DownloadProgressDialog> {
+  String _status = 'Starting download...';
+  double _progress = 0.0;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startDownload();
+  }
+
+  void _startDownload() {
+    try {
+      OtaUpdate()
+          .execute(widget.url, destinationFilename: 'hero_zero_update.apk')
+          .listen(
+        (OtaEvent event) {
+          if (!mounted) return;
+          setState(() {
+            _status = _getStatusMessage(event.status);
+            if (event.value != null && event.value!.isNotEmpty) {
+               _progress = (double.tryParse(event.value!) ?? 0) / 100;
+            }
+          });
+          
+          if (event.status == OtaStatus.INSTALLING) {
+             // Close dialog when installing starts or let user close? 
+             // Usually better to leave it or close it. 
+             // Navigator.pop(context); 
+          }
+        },
+        onError: (e) {
+          if (!mounted) return;
+          setState(() {
+            _status = 'Download Failed: $e';
+            _error = true;
+          });
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _status = 'Error: $e';
+          _error = true;
+        });
+      }
+    }
+  }
+
+  String _getStatusMessage(OtaStatus status) {
+    switch (status) {
+      case OtaStatus.DOWNLOADING: return 'Downloading...';
+      case OtaStatus.INSTALLING: return 'Installing...';
+      case OtaStatus.ALREADY_RUNNING_ERROR: return 'Download already running';
+      case OtaStatus.PERMISSION_NOT_GRANTED_ERROR: return 'Permission denied';
+      case OtaStatus.INTERNAL_ERROR: return 'Internal error';
+      case OtaStatus.DOWNLOAD_ERROR: return 'Download failed';
+      case OtaStatus.CHECKSUM_ERROR: return 'Checksum error';
+      default: return 'Status: $status';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async => _error, // Only fully dismissible on error
+      child: AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Updating App', style: TextStyle(color: Colors.white)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_status, style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 16),
+            LinearProgressIndicator(
+              value: _error ? 0 : (_progress > 0 ? _progress : null),
+              backgroundColor: Colors.white10,
+              valueColor: AlwaysStoppedAnimation<Color>(
+                  _error ? Colors.redAccent : const Color(0xFF00D97E)
+              ),
+            ),
+            if (_error) ...[
+               const SizedBox(height: 16),
+               SizedBox(
+                 width: double.infinity,
+                 child: ElevatedButton(
+                   onPressed: () {
+                     // Fallback to browser
+                     Navigator.pop(context);
+                     launchUrl(Uri.parse(widget.url), mode: LaunchMode.externalApplication);
+                   }, 
+                   style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey),
+                   child: const Text('OPEN IN BROWSER'),
+                 ),
+               ),
+               TextButton(
+                 onPressed: () => Navigator.pop(context),
+                 child: const Text('CLOSE'),
+               )
+            ]
           ],
         ),
       ),

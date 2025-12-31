@@ -52,7 +52,18 @@ class _LoginPageState extends State<LoginPage> {
       _devConfig = config;
     });
 
-    // Check availability
+  }
+  
+  Future<void> _loadUserCredentials() async {
+    final uid = await _storageService.getUid();
+    if (uid != null && uid.isNotEmpty) {
+      setState(() {
+        _userIdController.text = uid;
+      });
+    }
+  }
+
+  Future<void> _checkBiometricAvailability() async {
     final pin = await _storageService.getDevicePin();
     final bio = await _biometricService.isBiometricAvailable();
     if (mounted) {
